@@ -24,15 +24,16 @@
     #left, #right { display:flex; align-items:center; gap:10px; pointer-events: none; }
 
     .pill {
+      --pill-accent: rgba(255,255,255,0.10);
       pointer-events: auto;
       background: rgba(20, 24, 34, 0.78);
+      box-shadow: inset 0 0 0 999px var(--pill-accent), 0 6px 24px rgba(0,0,0,0.25);
       border: 1px solid rgba(255,255,255,0.14);
       backdrop-filter: blur(8px);
       border-radius: 999px;
       padding: 10px 14px;
       color: #fff;
-      box-shadow: 0 6px 24px rgba(0,0,0,0.25);
-      user-select: none;
+            user-select: none;
       font-weight: 600;
       letter-spacing: 0.2px;
     }
@@ -232,7 +233,7 @@
           <li><b>Zoom:</b> scroll wheel / pinch</li>
           <li><b>Select a level:</b> click any marker (first click)</li>
           <li><b>Place:</b> click a marker on the selected level (second click)</li>
-          <li><b>Deselect:</b> press <b>Esc</b> or click outside the cube</li>
+          <li><b>Deselect:</b> click outside the cube (desktop also supports <b>Esc</b>)</li>
           <li><b>Undo:</b> undo the <b>last</b> move only</li>
           <li><b>Win:</b> winning 4 are outlined in yellow</li>
         </ul>
@@ -286,6 +287,7 @@
 
     const wrap = document.getElementById("canvasWrap");
     const statusEl = document.getElementById("status");
+    const statusPill = statusEl; // same element, styled as a pill
     const undoBtn = document.getElementById("undoBtn");
     const resetBtn = document.getElementById("resetBtn");
 
@@ -326,11 +328,16 @@
 
     window.addEventListener("keydown", (ev) => {
       if (ev.key !== "Escape") return;
+
+      // Esc always closes the help overlay if it's open.
       if (helpOverlay.style.display === "flex") {
         hideHelp();
         return;
       }
-      clearSelection();
+
+      // Desktop: Esc deselects.
+      // Mobile: keep selection (deselect only by tapping outside the cube).
+      if (!isCoarsePointer) clearSelection();
     });
 
     const scene = new THREE.Scene();
@@ -603,8 +610,17 @@
       return true;
     }
 
+    function styleStatusForPlayer(player) {
+      const hex = playerHex(player);
+      // Subtle but clear tint for the status pill
+      statusPill.style.setProperty('--pill-accent', `rgba(${(hex>>16)&255}, ${(hex>>8)&255}, ${hex&255}, 0.28)`);
+      statusPill.style.borderColor = `rgba(${(hex>>16)&255}, ${(hex>>8)&255}, ${hex&255}, 0.45)`;
+    }
+
     function updateStatus(text) {
       statusEl.textContent = text;
+      // Keep the pill colour aligned to the current player during play
+      styleStatusForPlayer(currentPlayer);
     }
 
     function showOverlay(kind, player) {
@@ -634,7 +650,9 @@
 
     function resetGame() {
       board = makeEmptyBoard();
-      currentPlayer = P1;
+
+      // Randomise starting player each new game
+      currentPlayer = Math.random() < 0.5 ? P1 : P2;
       gameOver = false;
 
       while (pieceGroup.children.length) pieceGroup.remove(pieceGroup.children[0]);
@@ -653,7 +671,7 @@
 
       clearSelection();
       hideOverlay();
-      updateStatus("Player 1 (Red)");
+      updateStatus(`Player ${currentPlayer === P1 ? "1 (Red)" : "2 (Blue)"}`);
       updateFrameForCurrentPlayer();
 
       userHasMovedCamera = false;
@@ -752,7 +770,7 @@
       const hits = raycaster.intersectObjects(cellGroup.children, false);
       const hit = hits.find(h => h.object.visible);
 
-      // Click outside cube => deselect
+      // Tap/click outside cube => deselect (both desktop + mobile)
       if (!hit) {
         clearSelection();
         return;
@@ -761,9 +779,20 @@
       const { x, y, z } = hit.object.userData;
 
       // First click: select a level
-      if (selectedLevelZ === null || selectedLevelZ !== z) {
+      if (selectedLevelZ === null) {
         selectedLevelZ = z;
         applyLevelFocus({ x, y, z });
+        return;
+      }
+
+      // If a level is already selected:
+      // - Desktop: clicking another level switches selection
+      // - Mobile: ignore taps on other levels (deselect by tapping outside cube)
+      if (selectedLevelZ !== z) {
+        if (!isCoarsePointer) {
+          selectedLevelZ = z;
+          applyLevelFocus({ x, y, z });
+        }
         return;
       }
 
@@ -881,7 +910,7 @@
 
     runSelfTests();
     resetGame();
-    updateFrameForCurrentPlayer();
+    // resetGame() already calls updateFrameForCurrentPlayer() and updateStatus()
   </script>
 </body>
 </html>
