@@ -1,0 +1,60 @@
+# CUBE-4
+
+**CUBE-4** is a 3D, two-player abstract strategy game played on a 4×4×4 cube.  
+Players take turns placing pieces anywhere in the cube, aiming to be the first to align **four pieces in a straight line** — in any direction.
+
+This is a browser-based implementation using **Three.js**.
+
+---
+
+## 🎯 Game Rules
+
+- The board is a **4×4×4 cube** (64 positions)
+- Two players: **Red** and **Blue**
+- Players alternate turns
+- On your turn, place a piece on **any empty position** (no gravity)
+- A win is achieved by placing **four pieces in a straight line**, including:
+  - Rows, columns, or verticals
+  - Diagonals on a face
+  - Diagonals through the cube (3D diagonals)
+
+Winning pieces are highlighted in yellow.
+
+---
+
+## 🕹 Controls
+
+- **Rotate board:** click and drag
+- **Zoom:** mouse wheel / trackpad
+- **Place piece:** hover over a marker and click
+- **Undo:** revert one move at a time
+- **Reset:** start a new game
+- **?**: show game instructions
+
+The cube outline colour indicates the current player’s turn.
+
+---
+
+## 🧠 Visual Aids
+
+- Hovering over a position highlights:
+  - The current player’s colour
+  - The entire level (layer) being targeted
+- Other levels fade back to improve clarity
+- Accidental placements while rotating are prevented
+
+---
+
+## 🚀 Running the Game
+
+No build step required.
+
+### Option 1: Open directly
+Simply open `CUBE4.html` in a modern browser.
+
+### Option 2: Serve locally (recommended)
+Some browsers restrict ES module imports when opening files directly.
+
+```bash
+cd cube4
+python3 -m http.server

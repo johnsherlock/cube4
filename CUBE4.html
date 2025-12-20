@@ -1,0 +1,763 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>CUBE-4 – 3D Four-in-a-Row</title>
+  <style>
+    :root { color-scheme: dark; }
+    body { margin: 0; background:#0f1115; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+
+    #ui {
+      position: fixed; top: 12px; left: 12px; right: 12px;
+      display: flex; gap: 10px; align-items: center; justify-content: space-between;
+      pointer-events: none;
+      z-index: 10;
+    }
+    #left, #right { display:flex; align-items:center; gap:10px; pointer-events: none; }
+
+    .pill {
+      pointer-events: auto;
+      background: rgba(20, 24, 34, 0.78);
+      border: 1px solid rgba(255,255,255,0.14);
+      backdrop-filter: blur(8px);
+      border-radius: 999px;
+      padding: 10px 14px;
+      color: #fff;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.25);
+      user-select: none;
+      font-weight: 600;
+      letter-spacing: 0.2px;
+    }
+    button.pill { cursor: pointer; }
+
+    #hint { opacity: 0.85; font-size: 13px; font-weight: 500; }
+
+    #undoBtn {
+      padding: 12px 16px;
+      font-size: 14px;
+      font-weight: 800;
+      border: 1px solid rgba(255,255,255,0.18);
+    }
+    #undoBtn:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
+
+    #resetBtn {
+      padding: 12px 16px;
+      font-size: 14px;
+      font-weight: 800;
+      border: 1px solid rgba(255,255,255,0.18);
+    }
+
+    /* Small ? button */
+    button.pill.icon {
+      width: 38px;
+      height: 38px;
+      padding: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      line-height: 1;
+      border-radius: 999px;
+    }
+
+    /* Welcome / Help modal */
+    #helpOverlay {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 30;
+      background: rgba(0,0,0,0.45);
+      backdrop-filter: blur(6px);
+      pointer-events: auto;
+    }
+    #helpCard {
+      width: min(720px, calc(100vw - 44px));
+      border-radius: 18px;
+      background: rgba(16, 18, 24, 0.94);
+      border: 1px solid rgba(255,255,255,0.18);
+      box-shadow: 0 18px 60px rgba(0,0,0,0.55);
+      padding: 18px 18px 14px;
+      color: #fff;
+    }
+    #helpTitle {
+      margin: 0 0 10px 0;
+      font-size: 28px;
+      font-weight: 900;
+      letter-spacing: 0.6px;
+    }
+    .helpBody p { margin: 10px 0; opacity: 0.95; }
+    .helpBody ul { margin: 10px 0 8px 18px; padding: 0; opacity: 0.92; }
+    .helpBody li { margin: 6px 0; }
+    .helpBody .tiny { opacity: 0.75; font-size: 13px; }
+    .dontShow {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      margin-top: 10px;
+      opacity: 0.9;
+      user-select: none;
+    }
+    .helpActions {
+      margin-top: 14px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    #canvasWrap { width: 100vw; height: 100vh; }
+
+    /* Win banner – top centre, non-blocking */
+    #overlay {
+      position: fixed;
+      top: 72px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 20;
+      display: none;
+      pointer-events: none; /* never block the canvas */
+    }
+
+    #overlayCard {
+      pointer-events: auto;
+      text-align: center;
+      padding: 16px 22px;
+      border-radius: 16px;
+      background: rgba(16, 18, 24, 0.92);
+      border: 1px solid rgba(255,255,255,0.18);
+      box-shadow: 0 18px 60px rgba(0,0,0,0.45);
+      backdrop-filter: blur(6px);
+    }
+
+    #overlayTitle {
+      font-size: 32px;
+      margin: 0 0 6px 0;
+      font-weight: 900;
+      letter-spacing: 1px;
+    }
+
+    #overlaySub {
+      margin: 0 0 10px 0;
+      opacity: 0.85;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    #playAgainBtn {
+      cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.08);
+      color: #fff;
+      border-radius: 999px;
+      padding: 8px 14px;
+      font-weight: 800;
+      letter-spacing: 0.3px;
+    }
+  </style>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.160.1/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.160.1/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+
+<body>
+  <div id="ui">
+    <div id="left">
+      <div class="pill" id="status">Player 1 (Red)</div>
+      <div class="pill" id="hint">Drag to rotate • Scroll to zoom • Click a cell to place</div>
+    </div>
+    <div id="right">
+      <button class="pill" id="undoBtn" disabled>Undo</button>
+      <button class="pill" id="resetBtn">Reset</button>
+      <button class="pill icon" id="helpBtn" title="Help" aria-label="Help">?</button>
+    </div>
+  </div>
+
+  <!-- Welcome / Help modal -->
+  <div id="helpOverlay" aria-hidden="true">
+    <div id="helpCard" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+      <h1 id="helpTitle">Welcome to CUBE-4</h1>
+      <div class="helpBody">
+        <p><b>Goal:</b> be the first to make a line of <b>four</b> of your pieces in the 4×4×4 cube — in <b>any direction</b> (across rows, columns, verticals, or diagonals through space).</p>
+        <ul>
+          <li><b>Rotate:</b> click-and-drag</li>
+          <li><b>Zoom:</b> scroll wheel / trackpad</li>
+          <li><b>Place:</b> hover a marker and click (no gravity — any of the 64 spots)</li>
+          <li><b>Undo:</b> step back one move at a time</li>
+          <li><b>Win:</b> winning 4 are outlined in yellow</li>
+        </ul>
+        <p class="tiny">Tip: Hovering focuses a single <b>level</b> of the cube to make placements easier.</p>
+      </div>
+      <label class="dontShow">
+        <input type="checkbox" id="dontShowAgain" />
+        Do not show this again
+      </label>
+      <div class="helpActions">
+        <button class="pill" id="closeHelpBtn">Start playing</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="overlay">
+    <div id="overlayCard">
+      <h1 id="overlayTitle">PLAYER 1 WINS!</h1>
+      <p id="overlaySub">Rotate and zoom to inspect the winning line.</p>
+      <button id="playAgainBtn">Play again</button>
+    </div>
+  </div>
+
+  <div id="canvasWrap"></div>
+
+  <script type="module">
+    import * as THREE from "three";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+
+    const SIZE = 4;
+    const EMPTY = 0, P1 = 1, P2 = 2;
+
+    // 13 unique directions for 3D 4-in-a-row
+    const directions = [
+      [1,0,0],[0,1,0],[0,0,1],
+      [1,1,0],[1,-1,0],
+      [1,0,1],[1,0,-1],
+      [0,1,1],[0,1,-1],
+      [1,1,1],[1,1,-1],
+      [1,-1,1],[1,-1,-1],
+    ];
+
+    let board = makeEmptyBoard();
+    let currentPlayer = P1;
+    let gameOver = false;
+
+    // Undo stack
+    const moveHistory = []; // {x,y,z, player}
+
+    const wrap = document.getElementById("canvasWrap");
+    const statusEl = document.getElementById("status");
+    const undoBtn = document.getElementById("undoBtn");
+    const resetBtn = document.getElementById("resetBtn");
+
+    // Help modal elements
+    const helpBtn = document.getElementById("helpBtn");
+    const helpOverlay = document.getElementById("helpOverlay");
+    const closeHelpBtn = document.getElementById("closeHelpBtn");
+    const dontShowAgain = document.getElementById("dontShowAgain");
+    const WELCOME_KEY = "cube4_hide_welcome";
+
+    function showHelp() {
+      helpOverlay.style.display = "flex";
+      helpOverlay.setAttribute("aria-hidden", "false");
+      // keep focus sensible
+      closeHelpBtn?.focus?.();
+    }
+
+    function hideHelp() {
+      if (dontShowAgain?.checked) {
+        localStorage.setItem(WELCOME_KEY, "1");
+      }
+      helpOverlay.style.display = "none";
+      helpOverlay.setAttribute("aria-hidden", "true");
+    }
+
+    // Show on load unless user opted out
+    if (localStorage.getItem(WELCOME_KEY) !== "1") {
+      showHelp();
+    }
+
+    // Help controls
+    helpBtn.addEventListener("click", showHelp);
+    closeHelpBtn.addEventListener("click", hideHelp);
+
+    // Click outside the card closes it too
+    helpOverlay.addEventListener("click", (ev) => {
+      if (ev.target === helpOverlay) hideHelp();
+    });
+
+    // Close help on Escape key
+    window.addEventListener("keydown", (ev) => {
+      if (ev.key === "Escape" && helpOverlay.style.display === "flex") {
+        hideHelp();
+      }
+    });
+
+    const overlay = document.getElementById("overlay");
+    const overlayTitle = document.getElementById("overlayTitle");
+    const overlaySub = document.getElementById("overlaySub");
+    const playAgainBtn = document.getElementById("playAgainBtn");
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0f1115);
+
+    const camera = new THREE.PerspectiveCamera(50, 1, 0.1, 1000);
+    camera.position.set(8, 8, 10);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    wrap.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.08;
+    controls.target.set(0, 0, 0);
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.65));
+    const dir = new THREE.DirectionalLight(0xffffff, 0.9);
+    dir.position.set(8, 10, 6);
+    scene.add(dir);
+
+    const grid = new THREE.GridHelper(16, 16, 0x2a2f3a, 0x1d2230);
+    grid.position.y = -2.2;
+    grid.material.opacity = 0.35;
+    grid.material.transparent = true;
+    scene.add(grid);
+
+    const frameSize = SIZE - 1;
+    const box = new THREE.BoxGeometry(frameSize + 1.4, frameSize + 1.4, frameSize + 1.4);
+    const edges = new THREE.EdgesGeometry(box);
+    const frameMat = new THREE.LineBasicMaterial({ color: 0x6f7a92, transparent: true, opacity: 0.35 });
+    const frame = new THREE.LineSegments(edges, frameMat);
+    scene.add(frame);
+
+    const cellGroup = new THREE.Group();
+    const pieceGroup = new THREE.Group();
+    scene.add(cellGroup);
+    scene.add(pieceGroup);
+
+    // Map coordinates -> placed piece mesh
+    const piecesByKey = new Map();
+    // Outline objects to clear on reset/undo
+    const winOutlines = [];
+
+    function keyOf(x,y,z){ return `${x},${y},${z}`; }
+
+    function cellToWorld(x, y, z) {
+      const half = (SIZE - 1) / 2;
+      // World axes: X left-right, Y up (levels), Z depth
+      return new THREE.Vector3(x - half, z - half, y - half);
+    }
+
+    // Markers (click targets)
+    const markers = [];
+    const markerGeom = new THREE.SphereGeometry(0.14, 16, 12);
+    const baseMarkerMat = new THREE.MeshStandardMaterial({
+      color: 0x9aa3b2,
+      transparent: true,
+      opacity: 0.38,
+      roughness: 0.4,
+      metalness: 0.0
+    });
+
+    for (let x=0; x<SIZE; x++) {
+      for (let y=0; y<SIZE; y++) {
+        for (let z=0; z<SIZE; z++) {
+          const m = new THREE.Mesh(markerGeom, baseMarkerMat.clone());
+          m.position.copy(cellToWorld(x,y,z));
+          m.userData = { x, y, z, kind: "marker" };
+          cellGroup.add(m);
+          markers.push(m);
+        }
+      }
+    }
+
+    // Hover highlight
+    let hovered = null;
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    function defaultMarkerHex() { return 0x9aa3b2; }
+    function playerHoverHex(player) { return player === P1 ? 0xff4b4b : 0x4aa0ff; }
+
+    function updateFrameForCurrentPlayer() {
+      frameMat.color.setHex(playerHoverHex(currentPlayer));
+    }
+
+    // Opacity tuning (user preference: OP_BASE=0.18)
+    const OP_BASE = 0.18;         // default (no hover)
+    const OP_OTHER_LEVELS = 0.08; // other levels fade back when hovering
+    const OP_LEVEL_MAX = 0.78;    // same level (closest)
+    const OP_LEVEL_MIN = 0.48;    // same level (furthest)
+    const OP_HOVER = 0.90;        // hovered marker
+
+    // Level definition: same "z" index (the vertical layers in the logical 4x4x4 grid).
+    function isSameLevel(a, b) {
+      return a.z === b.z;
+    }
+
+    function clearLevelFocus() {
+      for (const m of markers) {
+        if (!m.visible) continue;
+        m.material.opacity = OP_BASE;
+        m.material.color.setHex(defaultMarkerHex());
+      }
+    }
+
+    function applyLevelFocus(focus) {
+      for (const m of markers) {
+        if (!m.visible) continue;
+
+        const u = m.userData;
+        if (isSameLevel(u, focus)) {
+          // distance within the level (x/y plane)
+          const dist = Math.abs(u.x - focus.x) + Math.abs(u.y - focus.y);
+          const op = Math.max(OP_LEVEL_MIN, OP_LEVEL_MAX - dist * 0.10);
+          m.material.opacity = op;
+        } else {
+          m.material.opacity = OP_OTHER_LEVELS;
+        }
+
+        m.material.color.setHex(defaultMarkerHex());
+      }
+    }
+
+    function setHovered(mesh) {
+      if (hovered === mesh) return;
+
+      if (hovered) hovered.scale.setScalar(1.0);
+      hovered = mesh;
+
+      if (!hovered) {
+        clearLevelFocus();
+        return;
+      }
+
+      applyLevelFocus(hovered.userData);
+
+      hovered.scale.setScalar(1.7);
+      hovered.material.opacity = OP_HOVER;
+      hovered.material.color.setHex(playerHoverHex(currentPlayer));
+    }
+
+    function refreshHoverColor() {
+      if (hovered) hovered.material.color.setHex(playerHoverHex(currentPlayer));
+    }
+
+    // Flat pieces (coin faces horizontal)
+    function placePiece(x,y,z, player) {
+      board[x][y][z] = player;
+
+      const marker = markers.find(m => m.userData.x===x && m.userData.y===y && m.userData.z===z);
+      if (marker) marker.visible = false;
+
+      const geom = new THREE.CylinderGeometry(0.34, 0.34, 0.14, 28);
+      const mat = new THREE.MeshStandardMaterial({
+        color: player === P1 ? 0xff2b2b : 0x2f7dff,
+        roughness: 0.35,
+        metalness: 0.08
+      });
+
+      const piece = new THREE.Mesh(geom, mat);
+      piece.position.copy(cellToWorld(x,y,z));
+      piece.userData = { x, y, z, kind: "piece", player };
+
+      pieceGroup.add(piece);
+      piecesByKey.set(keyOf(x,y,z), piece);
+    }
+
+    function removePiece(x,y,z) {
+      board[x][y][z] = EMPTY;
+
+      const k = keyOf(x,y,z);
+      const piece = piecesByKey.get(k);
+      if (piece) {
+        pieceGroup.remove(piece);
+        piecesByKey.delete(k);
+      }
+
+      const marker = markers.find(m => m.userData.x===x && m.userData.y===y && m.userData.z===z);
+      if (marker) marker.visible = true;
+    }
+
+    function addWinOutlineToPiece(piece) {
+      const outlineGeom = new THREE.CylinderGeometry(0.39, 0.39, 0.17, 28);
+      const outlineEdges = new THREE.EdgesGeometry(outlineGeom);
+      const outline = new THREE.LineSegments(
+        outlineEdges,
+        new THREE.LineBasicMaterial({ color: 0xffd400, transparent: true, opacity: 0.95 })
+      );
+
+      outline.position.copy(piece.position);
+      outline.rotation.copy(piece.rotation);
+      pieceGroup.add(outline);
+      winOutlines.push(outline);
+    }
+
+    function clearWinOutlines() {
+      for (const o of winOutlines) pieceGroup.remove(o);
+      winOutlines.length = 0;
+    }
+
+    function inBounds(x,y,z) {
+      return x>=0 && y>=0 && z>=0 && x<SIZE && y<SIZE && z<SIZE;
+    }
+
+    // Returns winning 4 coordinates if win, otherwise null
+    function getWinningLineFrom(x,y,z, player) {
+      for (const [dx,dy,dz] of directions) {
+        // walk to the "start" of the line in -dir
+        let sx = x, sy = y, sz = z;
+        while (true) {
+          const nx = sx - dx, ny = sy - dy, nz = sz - dz;
+          if (!inBounds(nx,ny,nz) || board[nx][ny][nz] !== player) break;
+          sx = nx; sy = ny; sz = nz;
+        }
+
+        // collect contiguous coords in +dir
+        const line = [];
+        let cx = sx, cy = sy, cz = sz;
+        while (inBounds(cx,cy,cz) && board[cx][cy][cz] === player) {
+          line.push([cx,cy,cz]);
+          cx += dx; cy += dy; cz += dz;
+        }
+
+        if (line.length >= 4) return line.slice(0, 4);
+      }
+      return null;
+    }
+
+    function boardIsFull() {
+      for (let x=0; x<SIZE; x++)
+        for (let y=0; y<SIZE; y++)
+          for (let z=0; z<SIZE; z++)
+            if (board[x][y][z] === EMPTY) return false;
+      return true;
+    }
+
+    function updateStatus(text) {
+      statusEl.textContent = text;
+    }
+
+    function showOverlay(kind, player) {
+      overlay.style.display = "flex";
+      if (kind === "win") {
+        overlayTitle.textContent = `PLAYER ${player === P1 ? "1" : "2"} WINS!`;
+        overlayTitle.style.color = player === P1 ? "#ff4b4b" : "#4aa0ff";
+        overlaySub.textContent = "Rotate and zoom to inspect the winning line.";
+      } else {
+        overlayTitle.textContent = "DRAW!";
+        overlayTitle.style.color = "#ffffff";
+        overlaySub.textContent = "No more moves. Rotate/zoom to inspect the final board.";
+      }
+    }
+
+    function hideOverlay() {
+      overlay.style.display = "none";
+    }
+
+    function resetGame() {
+      board = makeEmptyBoard();
+      currentPlayer = P1;
+      gameOver = false;
+
+      // Clear pieces
+      while (pieceGroup.children.length) pieceGroup.remove(pieceGroup.children[0]);
+      piecesByKey.clear();
+
+      // Clear outlines
+      clearWinOutlines();
+
+      // Restore markers
+      for (const m of markers) {
+        m.visible = true;
+        m.scale.setScalar(1.0);
+        m.material.opacity = OP_BASE;
+        m.material.color.setHex(defaultMarkerHex());
+      }
+
+      // Clear undo stack
+      moveHistory.length = 0;
+      undoBtn.disabled = true;
+
+      setHovered(null);
+      hideOverlay();
+      updateStatus("Player 1 (Red)");
+      updateFrameForCurrentPlayer();
+    }
+
+    function undoMove() {
+      if (moveHistory.length === 0) return;
+
+      // If we were in a win/draw state, clear it and allow play to continue
+      if (gameOver) {
+        gameOver = false;
+        hideOverlay();
+      }
+
+      clearWinOutlines();
+
+      const last = moveHistory.pop();
+      removePiece(last.x, last.y, last.z);
+
+      // set current player back to the one who made that move
+      currentPlayer = last.player;
+      updateStatus(`Player ${currentPlayer === P1 ? "1 (Red)" : "2 (Blue)"}`);
+      updateFrameForCurrentPlayer();
+      refreshHoverColor();
+
+      undoBtn.disabled = (moveHistory.length === 0);
+    }
+
+    undoBtn.addEventListener("click", undoMove);
+    resetBtn.addEventListener("click", resetGame);
+    playAgainBtn.addEventListener("click", resetGame);
+
+    function makeEmptyBoard() {
+      return Array.from({ length: SIZE }, () =>
+        Array.from({ length: SIZE }, () =>
+          Array(SIZE).fill(EMPTY)
+        )
+      );
+    }
+
+    function onPointerMove(ev) {
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -(((ev.clientY - rect.top) / rect.height) * 2 - 1);
+
+      raycaster.setFromCamera(mouse, camera);
+      const hits = raycaster.intersectObjects(cellGroup.children, false);
+      const hit = hits.find(h => h.object.visible);
+      if (hit) setHovered(hit.object);
+      else setHovered(null);
+    }
+
+    // ---- Safe click gating to avoid accidental placements while rotating ----
+    let downPos = null;
+    let downTime = 0;
+    const CLICK_MOVE_TOL = 6;    // pixels
+    const CLICK_TIME_TOL = 650;  // ms
+
+    function tryPlaceAtHover() {
+      if (gameOver) return;
+      if (!hovered) return;
+
+      const { x, y, z } = hovered.userData;
+      if (board[x][y][z] !== EMPTY) return;
+
+      const player = currentPlayer;
+      placePiece(x,y,z, player);
+      moveHistory.push({ x, y, z, player });
+      undoBtn.disabled = false;
+
+      // Win?
+      const winning4 = getWinningLineFrom(x,y,z, player);
+      if (winning4) {
+        clearWinOutlines();
+        for (const [wx,wy,wz] of winning4) {
+          const piece = piecesByKey.get(keyOf(wx,wy,wz));
+          if (piece) addWinOutlineToPiece(piece);
+        }
+
+        updateStatus(`Player ${player === P1 ? "1 (Red)" : "2 (Blue)"} wins!`);
+        // keep outline on the winner once the game ends
+        frameMat.color.setHex(playerHoverHex(player));
+        gameOver = true;
+        showOverlay("win", player);
+        return;
+      }
+
+      // Draw?
+      if (boardIsFull()) {
+        updateStatus("Draw!");
+        gameOver = true;
+        showOverlay("draw");
+        return;
+      }
+
+      currentPlayer = (currentPlayer === P1) ? P2 : P1;
+      updateStatus(`Player ${currentPlayer === P1 ? "1 (Red)" : "2 (Blue)"}`);
+      updateFrameForCurrentPlayer();
+      refreshHoverColor();
+    }
+
+    renderer.domElement.addEventListener("pointermove", onPointerMove);
+
+    renderer.domElement.addEventListener("pointerdown", (ev) => {
+      downPos = { x: ev.clientX, y: ev.clientY };
+      downTime = performance.now();
+    });
+
+    renderer.domElement.addEventListener("pointerup", (ev) => {
+      if (!downPos) return;
+      const dx = ev.clientX - downPos.x;
+      const dy = ev.clientY - downPos.y;
+      const dist = Math.hypot(dx, dy);
+      const dt = performance.now() - downTime;
+      downPos = null;
+
+      // If the user dragged to rotate, ignore as a placement click
+      if (dist > CLICK_MOVE_TOL) return;
+      // Ignore press-and-hold
+      if (dt > CLICK_TIME_TOL) return;
+
+      tryPlaceAtHover();
+    });
+
+    function resize() {
+      const w = wrap.clientWidth;
+      const h = wrap.clientHeight;
+      renderer.setSize(w, h, false);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+    }
+    window.addEventListener("resize", resize);
+    resize();
+
+    function tick() {
+      controls.update();
+      renderer.render(scene, camera);
+      requestAnimationFrame(tick);
+    }
+    tick();
+
+    // --- Lightweight self-tests (run once, no UI impact) ---
+    function assert(cond, msg) {
+      if (!cond) throw new Error(`Self-test failed: ${msg}`);
+    }
+
+    function runSelfTests() {
+      // Diagonal across XYZ should be detected
+      board = makeEmptyBoard();
+      for (let i=0; i<4; i++) board[i][i][i] = P1;
+      const w1 = getWinningLineFrom(1,1,1,P1);
+      assert(Array.isArray(w1) && w1.length === 4, "XYZ diagonal win not detected");
+
+      // Straight line in X should be detected
+      board = makeEmptyBoard();
+      for (let x=0; x<4; x++) board[x][0][0] = P2;
+      const w2 = getWinningLineFrom(2,0,0,P2);
+      assert(Array.isArray(w2) && w2.length === 4, "X-axis win not detected");
+
+      // Straight line in Z should be detected
+      board = makeEmptyBoard();
+      for (let z=0; z<4; z++) board[0][0][z] = P1;
+      const w3 = getWinningLineFrom(0,0,2,P1);
+      assert(Array.isArray(w3) && w3.length === 4, "Z-axis win not detected");
+
+      // No win should be reported for a scattered pattern
+      board = makeEmptyBoard();
+      board[0][0][0] = P1;
+      board[1][1][0] = P1;
+      board[2][2][1] = P1;
+      board[3][3][2] = P1; // not a straight line (z differs)
+      const w4 = getWinningLineFrom(3,3,2,P1);
+      assert(w4 === null, "False positive win detected");
+
+      board = makeEmptyBoard();
+    }
+
+    runSelfTests();
+    resetGame();
+    updateFrameForCurrentPlayer();
+  </script>
+</body>
+</html>
