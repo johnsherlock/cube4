@@ -185,6 +185,23 @@
       font-weight: 800;
       letter-spacing: 0.3px;
     }
+
+    /* Bottom-left logo */
+    #logo {
+      position: fixed;
+      left: 14px;
+      bottom: 14px;
+      z-index: 5;
+      font-weight: 900;
+      letter-spacing: 1.5px;
+      font-size: 30px;
+      color: rgba(255,255,255,0.65);
+      pointer-events: none;
+      user-select: none;
+    }
+    #logo span {
+      color: #ff4b4b;
+    }
   </style>
 
   <script type="importmap">
@@ -240,6 +257,9 @@
   </div>
 
   <div id="canvasWrap"></div>
+
+  <!-- CUBE4 logo -->
+  <div id="logo">CUBE<span>4</span></div>
 
   <script type="module">
     import * as THREE from "three";
