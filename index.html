@@ -311,37 +311,37 @@
         <div class="row">
           <label for="playersSel">Players</label>
           <select class="pill" id="playersSel">
-            <option value="1">One Player</option>
-            <option value="2" selected>Two Player</option>
+            <option value="1" selected>One Player</option>
+            <option value="2">Two Player</option>
           </select>
         </div>
 
         <div class="row" id="difficultyRow" style="display:none;">
           <label for="difficultySel">Computer Difficulty</label>
           <select class="pill" id="difficultySel">
-            <option value="easy">Easy</option>
-            <option value="medium" selected>Medium</option>
+            <option value="easy" selected>Easy</option>
+            <option value="medium">Medium</option>
             <option value="expert">Expert</option>
           </select>
         </div>
 
         <div class="row">
-          <label for="firstMoveSel">First Move</label>
+          <label for="firstMoveSel">First to Move</label>
           <select class="pill" id="firstMoveSel">
             <option value="red">Red</option>
             <option value="blue">Blue</option>
-            <option value="random" selected>Random</option>
+            <option value="random">Random</option>
             <option value="winner">Winner</option>
-            <option value="alternate">Alternate</option>
+            <option value="alternate" selected>Alternate</option>
           </select>
         </div>
 
         <div class="row">
           <label for="matchSel">Match style</label>
           <select class="pill" id="matchSel">
-            <option value="bo3">Best of 3</option>
+            <option value="bo3" selected>Best of 3</option>
             <option value="bo5">Best of 5</option>
-            <option value="unbounded" selected>Unbounded</option>
+            <option value="unbounded">Unbounded</option>
           </select>
         </div>
 
@@ -375,8 +375,9 @@
     const SIZE = 4;
     const EMPTY = 0, P1 = 1, P2 = 2;
 
-    const LS_KEY = "cube4_settings_v2";
-    const LS_SCORE_KEY = "cube4_score_v2";
+    // Storage keys (bump version when changing defaults)
+    const LS_KEY = "cube4_settings_v3";
+    const LS_SCORE_KEY = "cube4_score_v3";
 
     // 13 unique directions for 3D 4-in-a-row
     const directions = [
@@ -437,10 +438,10 @@
     // aiDifficulty: easy|medium|expert
     // firstMovePolicy: red|blue|random|winner|alternate
     // matchStyle: unbounded | bo3 | bo5
-    let playersCount = 2;
-    let aiDifficulty = "medium";
-    let firstMovePolicy = "random";
-    let matchStyle = "unbounded";
+    let playersCount = 1;
+    let aiDifficulty = "easy";
+    let firstMovePolicy = "alternate";
+    let matchStyle = "bo3";
 
     const aiPlayer = P2; // AI is always Blue
 
@@ -482,9 +483,9 @@
         const s = JSON.parse(localStorage.getItem(LS_KEY) || "null");
         if (s && typeof s === "object") {
           if (s.playersCount === 1 || s.playersCount === 2) playersCount = s.playersCount;
-          if (s.aiDifficulty) aiDifficulty = s.aiDifficulty;
-          if (s.firstMovePolicy) firstMovePolicy = s.firstMovePolicy;
-          if (s.matchStyle) matchStyle = s.matchStyle;
+          if (s.aiDifficulty === "easy" || s.aiDifficulty === "medium" || s.aiDifficulty === "expert") aiDifficulty = s.aiDifficulty;
+          if (["red","blue","random","winner","alternate"].includes(s.firstMovePolicy)) firstMovePolicy = s.firstMovePolicy;
+          if (["unbounded","bo3","bo5"].includes(s.matchStyle)) matchStyle = s.matchStyle;
           if (s.lastWinner === P1 || s.lastWinner === P2) lastWinner = s.lastWinner;
           if (s.lastStartingPlayer === P1 || s.lastStartingPlayer === P2) lastStartingPlayer = s.lastStartingPlayer;
         }
@@ -669,7 +670,7 @@
       const aspect = camera.aspect || 1;
 
       // baseMargin 4 mobile / 3 desktop (as per your tweak)
-      const baseMargin = matchMedia('(pointer: coarse)').matches ? 1 : 3;
+      const baseMargin = matchMedia('(pointer: coarse)').matches ? 1.6 : 3;
       const portraitBoost = aspect < 1 ? Math.min(1 / aspect, 2.2) : 1;
       const distance = (maxDim * 0.5) / Math.tan(fov * 0.5) * baseMargin * portraitBoost;
 
