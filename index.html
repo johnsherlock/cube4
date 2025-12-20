@@ -363,14 +363,26 @@
     // Touch UX
     const isCoarsePointer = matchMedia('(pointer: coarse)').matches;
     controls.enableZoom = true;
-    controls.enablePan = !isCoarsePointer;
+    controls.enablePan = true; // allow 2-finger pan on mobile too
+    controls.enableRotate = true;
+
+    // Mobile/touch: 1 finger rotate, 2 fingers pinch-zoom + pan
     controls.touches = {
       ONE: THREE.TOUCH.ROTATE,
-      TWO: isCoarsePointer ? THREE.TOUCH.DOLLY : THREE.TOUCH.DOLLY_PAN,
+      TWO: THREE.TOUCH.DOLLY_PAN,
     };
-    controls.zoomSpeed = 0.8;
-    controls.rotateSpeed = 0.8;
+
+    controls.zoomSpeed = 0.85;
+    controls.rotateSpeed = 0.85;
+    controls.panSpeed = 0.8;
     controls.screenSpacePanning = true;
+
+    // iOS Safari can be finicky about pinch/scroll gestures; be explicit.
+    // This does NOT disable OrbitControls — it helps ensure the gesture reaches the canvas.
+    renderer.domElement.addEventListener('touchmove', (e) => {
+      // Prevent page scroll/zoom while interacting with the canvas
+      e.preventDefault();
+    }, { passive: false });
 
     // Track whether the user has taken manual control of the camera.
     let userHasMovedCamera = false;
@@ -827,7 +839,8 @@
     resize();
 
     function tick() {
-      if (isCoarsePointer) controls.target.copy(fitCenter);
+      // Don't force the target every frame; it can interfere with touch dolly/pan on mobile.
+      // We keep the cube centred via fitCameraToCube() and OrbitControls target updates.
       controls.update();
       renderer.render(scene, camera);
       requestAnimationFrame(tick);
