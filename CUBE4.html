@@ -33,7 +33,7 @@
 
     #hint { opacity: 0.85; font-size: 13px; font-weight: 500; }
 
-    #undoBtn {
+    #undoBtn, #resetBtn {
       padding: 12px 16px;
       font-size: 14px;
       font-weight: 800;
@@ -42,13 +42,6 @@
     #undoBtn:disabled {
       opacity: 0.45;
       cursor: default;
-    }
-
-    #resetBtn {
-      padding: 12px 16px;
-      font-size: 14px;
-      font-weight: 800;
-      border: 1px solid rgba(255,255,255,0.18);
     }
 
     /* Small ? button */
@@ -64,7 +57,7 @@
       border-radius: 999px;
     }
 
-    /* Welcome / Help modal */
+    /* Help overlay: does NOT dim/blur, and does NOT block the canvas */
     #helpOverlay {
       position: fixed;
       inset: 0;
@@ -72,43 +65,61 @@
       align-items: center;
       justify-content: center;
       z-index: 30;
-      background: rgba(0,0,0,0.45);
-      backdrop-filter: blur(6px);
-      pointer-events: auto;
+      background: transparent;
+      backdrop-filter: none;
+      pointer-events: none; /* allow orbit/zoom/click-through to the canvas */
     }
+
     #helpCard {
+      position: relative;
+      pointer-events: auto; /* card is interactive */
       width: min(720px, calc(100vw - 44px));
       border-radius: 18px;
-      background: rgba(16, 18, 24, 0.94);
+      background: rgba(16, 18, 24, 0.62); /* transparent so grid is visible */
       border: 1px solid rgba(255,255,255,0.18);
       box-shadow: 0 18px 60px rgba(0,0,0,0.55);
       padding: 18px 18px 14px;
       color: #fff;
     }
+
     #helpTitle {
       margin: 0 0 10px 0;
       font-size: 28px;
       font-weight: 900;
       letter-spacing: 0.6px;
     }
+
     .helpBody p { margin: 10px 0; opacity: 0.95; }
     .helpBody ul { margin: 10px 0 8px 18px; padding: 0; opacity: 0.92; }
     .helpBody li { margin: 6px 0; }
     .helpBody .tiny { opacity: 0.75; font-size: 13px; }
-    .dontShow {
-      display: flex;
-      gap: 10px;
-      align-items: center;
-      margin-top: 10px;
-      opacity: 0.9;
-      user-select: none;
-    }
+
     .helpActions {
       margin-top: 14px;
       display: flex;
       justify-content: flex-end;
       gap: 10px;
     }
+
+    .helpClose {
+      position: absolute;
+      top: 10px;
+      right: 12px;
+      width: 36px;
+      height: 36px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.06);
+      color: #fff;
+      font-size: 22px;
+      font-weight: 900;
+      line-height: 1;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .helpClose:hover { background: rgba(255,255,255,0.10); }
 
     #canvasWrap { width: 100vw; height: 100vh; }
 
@@ -120,7 +131,7 @@
       transform: translateX(-50%);
       z-index: 20;
       display: none;
-      pointer-events: none; /* never block the canvas */
+      pointer-events: none;
     }
 
     #overlayCard {
@@ -183,10 +194,11 @@
     </div>
   </div>
 
-  <!-- Welcome / Help modal -->
+  <!-- Welcome / Help overlay (non-blocking) -->
   <div id="helpOverlay" aria-hidden="true">
     <div id="helpCard" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
       <h1 id="helpTitle">Welcome to CUBE-4</h1>
+      <button class="helpClose" id="closeHelpX" title="Close" aria-label="Close">×</button>
       <div class="helpBody">
         <p><b>Goal:</b> be the first to make a line of <b>four</b> of your pieces in the 4×4×4 cube — in <b>any direction</b> (across rows, columns, verticals, or diagonals through space).</p>
         <ul>
@@ -198,10 +210,6 @@
         </ul>
         <p class="tiny">Tip: Hovering focuses a single <b>level</b> of the cube to make placements easier.</p>
       </div>
-      <label class="dontShow">
-        <input type="checkbox" id="dontShowAgain" />
-        Do not show this again
-      </label>
       <div class="helpActions">
         <button class="pill" id="closeHelpBtn">Start playing</button>
       </div>
@@ -247,47 +255,32 @@
     const undoBtn = document.getElementById("undoBtn");
     const resetBtn = document.getElementById("resetBtn");
 
-    // Help modal elements
+    // Help elements
     const helpBtn = document.getElementById("helpBtn");
     const helpOverlay = document.getElementById("helpOverlay");
     const closeHelpBtn = document.getElementById("closeHelpBtn");
-    const dontShowAgain = document.getElementById("dontShowAgain");
-    const WELCOME_KEY = "cube4_hide_welcome";
+    const closeHelpX = document.getElementById("closeHelpX");
 
     function showHelp() {
       helpOverlay.style.display = "flex";
       helpOverlay.setAttribute("aria-hidden", "false");
-      // keep focus sensible
       closeHelpBtn?.focus?.();
     }
 
     function hideHelp() {
-      if (dontShowAgain?.checked) {
-        localStorage.setItem(WELCOME_KEY, "1");
-      }
       helpOverlay.style.display = "none";
       helpOverlay.setAttribute("aria-hidden", "true");
     }
 
-    // Show on load unless user opted out
-    if (localStorage.getItem(WELCOME_KEY) !== "1") {
-      showHelp();
-    }
+    // Show help on load (no "do not show again" preference)
+    showHelp();
 
-    // Help controls
     helpBtn.addEventListener("click", showHelp);
     closeHelpBtn.addEventListener("click", hideHelp);
+    closeHelpX.addEventListener("click", hideHelp);
 
-    // Click outside the card closes it too
-    helpOverlay.addEventListener("click", (ev) => {
-      if (ev.target === helpOverlay) hideHelp();
-    });
-
-    // Close help on Escape key
     window.addEventListener("keydown", (ev) => {
-      if (ev.key === "Escape" && helpOverlay.style.display === "flex") {
-        hideHelp();
-      }
+      if (ev.key === "Escape" && helpOverlay.style.display === "flex") hideHelp();
     });
 
     const overlay = document.getElementById("overlay");
@@ -381,7 +374,7 @@
       frameMat.color.setHex(playerHoverHex(currentPlayer));
     }
 
-    // Opacity tuning (user preference: OP_BASE=0.18)
+    // Opacity tuning (user preference)
     const OP_BASE = 0.18;         // default (no hover)
     const OP_OTHER_LEVELS = 0.08; // other levels fade back when hovering
     const OP_LEVEL_MAX = 0.78;    // same level (closest)
