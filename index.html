@@ -280,6 +280,12 @@
     function hideHelp() {
       helpOverlay.style.display = "none";
       helpOverlay.setAttribute("aria-hidden", "true");
+
+      // After closing the help card on mobile, ensure we start from a nicely centred view.
+      // Only do this if the user hasn't already interacted with the camera.
+      if (!userHasMovedCamera) {
+        fitCameraToCube();
+      }
     }
 
     // Show help on load (no "do not show again" preference)
@@ -373,7 +379,13 @@
       const aspectBoost = aspect < 1 ? (1 / aspect) : 1;
 
       // Base distance so object fits vertically, with a margin.
-      const distance = (maxDim * 0.5) / Math.tan(fov * 0.5) * 1.25 * Math.min(aspectBoost, 1.8);
+      // Slightly different framing on touch devices vs desktop.
+      const isCoarsePointer = matchMedia('(pointer: coarse)').matches;
+      const baseMargin = isCoarsePointer ? 4 : 3; // larger = zoom out more
+
+      const portraitBoost = aspect < 1 ? Math.min(1 / aspect, 2.2) : 1;
+      // Margin tuned so the cube fits comfortably on both desktop and mobile.
+      const distance = (maxDim * 0.5) / Math.tan(fov * 0.5) * baseMargin * portraitBoost;
 
       // Place camera on a diagonal for a pleasing 3D view.
       const dir = new THREE.Vector3(1, 1, 1).normalize();
@@ -387,7 +399,7 @@
 
       // Reasonable orbit limits
       controls.minDistance = distance * 0.35;
-      controls.maxDistance = distance * 3.0;
+      controls.maxDistance = distance * 4.0;
     }
 
     // Initial fit before first render
