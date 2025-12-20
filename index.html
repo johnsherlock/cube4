@@ -130,7 +130,12 @@
     }
     .helpClose:hover { background: rgba(255,255,255,0.10); }
 
-    #canvasWrap { width: 100vw; height: 100dvh; }
+    #canvasWrap {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100dvh;
+    }
     /* Fallback for browsers that misreport 100vh (older mobile Safari) */
     #canvasWrap.vhfix { height: calc(var(--vh, 1vh) * 100); }
 
@@ -312,6 +317,9 @@
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.domElement.style.width = "100%";
+    renderer.domElement.style.height = "100%";
+    renderer.domElement.style.display = "block";
     wrap.appendChild(renderer.domElement);
 
     // Mobile viewport-height fix (avoids 100vh issues with address bars)
@@ -322,6 +330,12 @@
     window.addEventListener('resize', setVH);
     window.addEventListener('orientationchange', setVH);
     setVH();
+
+    // Give mobile browsers a tick to settle address bars, then re-apply sizing.
+    requestAnimationFrame(() => {
+      setVH();
+      resize();
+    });
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
@@ -805,7 +819,7 @@
     function resize() {
       const w = wrap.clientWidth;
       const h = wrap.clientHeight;
-      renderer.setSize(w, h, false);
+      renderer.setSize(w, h);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
 
@@ -822,6 +836,12 @@
       }
     }
     window.addEventListener("resize", resize);
+
+    // Mobile browsers can change the visual viewport without firing window.resize reliably.
+    // Observe the wrapper element and resize the renderer when its box changes.
+    const ro = new ResizeObserver(() => resize());
+    ro.observe(wrap);
+
     resize();
 
     function tick() {
