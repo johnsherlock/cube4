@@ -328,15 +328,20 @@
     controls.dampingFactor = 0.08;
     controls.target.set(0, 0, 0);
 
-    // Mobile/touch UX: 1 finger rotate, 2 fingers pinch-zoom + pan
+    // Mobile/touch UX: 1 finger rotate, 2 fingers pinch-zoom.
+    // IMPORTANT: on phones it's very easy to accidentally pan and "lose" the cube,
+    // so we disable panning for coarse pointers to keep the cube centred.
+    const isCoarsePointer = matchMedia('(pointer: coarse)').matches;
+
     controls.enableZoom = true;
-    controls.enablePan = true;
+    controls.enablePan = !isCoarsePointer;
     controls.touches = {
       ONE: THREE.TOUCH.ROTATE,
-      TWO: THREE.TOUCH.DOLLY_PAN,
+      TWO: THREE.TOUCH.DOLLY_PAN, // with enablePan=false this behaves like pinch-zoom only
     };
     controls.zoomSpeed = 0.8;
     controls.rotateSpeed = 0.8;
+    controls.screenSpacePanning = true;
 
     // Track whether the user has taken manual control of the camera.
     // If not, we can auto-fit/centre the cube on mobile/resizes.
