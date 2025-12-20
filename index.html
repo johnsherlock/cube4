@@ -337,16 +337,18 @@
     controls.enablePan = !isCoarsePointer;
     controls.touches = {
       ONE: THREE.TOUCH.ROTATE,
-      TWO: THREE.TOUCH.DOLLY_PAN, // with enablePan=false this behaves like pinch-zoom only
+      // On mobile we want pinch-zoom without panning the target (keeps cube centred).
+      TWO: isCoarsePointer ? THREE.TOUCH.DOLLY : THREE.TOUCH.DOLLY_PAN,
     };
     controls.zoomSpeed = 0.8;
     controls.rotateSpeed = 0.8;
     controls.screenSpacePanning = true;
 
     // Track whether the user has taken manual control of the camera.
-    // If not, we can auto-fit/centre the cube on mobile/resizes.
+    // We only flip this to true on actual pointer interaction with the canvas (not on load).
     let userHasMovedCamera = false;
-    controls.addEventListener('start', () => { userHasMovedCamera = true; });
+    let initialFitDone = false; // ensures we fit once *after* correct aspect is known
+
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.65));
     const dir = new THREE.DirectionalLight(0xffffff, 0.9);
@@ -367,11 +369,16 @@
     scene.add(frame);
 
     // --- Camera fitting (helps mobile portrait by centring + zooming out by default) ---
+    // We know the cube frame is centred at the origin, but we still compute a fit size.
     const fitBox = new THREE.Box3().setFromObject(frame);
     const fitSize = new THREE.Vector3();
     const fitCenter = new THREE.Vector3();
     fitBox.getSize(fitSize);
     fitBox.getCenter(fitCenter);
+
+    // Defensive: keep the cube pinned to the true scene origin (helps some mobile browsers where
+    // OrbitControls can end up with a tiny target offset during init).
+    fitCenter.set(0, 0, 0);
 
     function fitCameraToCube() {
       // Fit the cube into view regardless of aspect ratio.
@@ -666,7 +673,9 @@
 
       // Reset the camera to a centred default view
       userHasMovedCamera = false;
+      initialFitDone = false;
       fitCameraToCube();
+      initialFitDone = true;
     }
 
     function undoMove() {
@@ -770,6 +779,9 @@
     renderer.domElement.addEventListener("pointermove", onPointerMove);
 
     renderer.domElement.addEventListener("pointerdown", (ev) => {
+      // Any pointer interaction on the canvas counts as "user took control".
+      userHasMovedCamera = true;
+
       downPos = { x: ev.clientX, y: ev.clientY };
       downTime = performance.now();
     });
@@ -797,7 +809,14 @@
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
 
-      // If the user hasn't adjusted the view yet, keep the cube nicely centred and sized.
+      // Always perform one fit after we know the real aspect ratio (fixes mobile "pinned" starts).
+      if (!initialFitDone) {
+        fitCameraToCube();
+        initialFitDone = true;
+        return;
+      }
+
+      // After that, only auto-fit if the user hasn't adjusted the view yet.
       if (!userHasMovedCamera) {
         fitCameraToCube();
       }
@@ -806,6 +825,11 @@
     resize();
 
     function tick() {
+      // On mobile, keep the orbit target pinned so the cube stays centred.
+      if (isCoarsePointer) {
+        controls.target.copy(fitCenter);
+      }
+
       controls.update();
       renderer.render(scene, camera);
       requestAnimationFrame(tick);
