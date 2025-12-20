@@ -332,6 +332,11 @@
     controls.zoomSpeed = 0.8;
     controls.rotateSpeed = 0.8;
 
+    // Track whether the user has taken manual control of the camera.
+    // If not, we can auto-fit/centre the cube on mobile/resizes.
+    let userHasMovedCamera = false;
+    controls.addEventListener('start', () => { userHasMovedCamera = true; });
+
     scene.add(new THREE.AmbientLight(0xffffff, 0.65));
     const dir = new THREE.DirectionalLight(0xffffff, 0.9);
     dir.position.set(8, 10, 6);
@@ -349,6 +354,44 @@
     const frameMat = new THREE.LineBasicMaterial({ color: 0x6f7a92, transparent: true, opacity: 0.35 });
     const frame = new THREE.LineSegments(edges, frameMat);
     scene.add(frame);
+
+    // --- Camera fitting (helps mobile portrait by centring + zooming out by default) ---
+    const fitBox = new THREE.Box3().setFromObject(frame);
+    const fitSize = new THREE.Vector3();
+    const fitCenter = new THREE.Vector3();
+    fitBox.getSize(fitSize);
+    fitBox.getCenter(fitCenter);
+
+    function fitCameraToCube() {
+      // Fit the cube into view regardless of aspect ratio.
+      // Uses the largest dimension and camera vertical FOV.
+      const maxDim = Math.max(fitSize.x, fitSize.y, fitSize.z);
+      const fov = THREE.MathUtils.degToRad(camera.fov);
+
+      // For portrait (aspect < 1), increase distance a bit more.
+      const aspect = camera.aspect || 1;
+      const aspectBoost = aspect < 1 ? (1 / aspect) : 1;
+
+      // Base distance so object fits vertically, with a margin.
+      const distance = (maxDim * 0.5) / Math.tan(fov * 0.5) * 1.25 * Math.min(aspectBoost, 1.8);
+
+      // Place camera on a diagonal for a pleasing 3D view.
+      const dir = new THREE.Vector3(1, 1, 1).normalize();
+      camera.position.copy(fitCenter).addScaledVector(dir, distance);
+      camera.near = Math.max(0.01, distance / 200);
+      camera.far = distance * 200;
+      camera.updateProjectionMatrix();
+
+      controls.target.copy(fitCenter);
+      controls.update();
+
+      // Reasonable orbit limits
+      controls.minDistance = distance * 0.35;
+      controls.maxDistance = distance * 3.0;
+    }
+
+    // Initial fit before first render
+    fitCameraToCube();
 
     const cellGroup = new THREE.Group();
     const pieceGroup = new THREE.Group();
@@ -603,6 +646,10 @@
       hideOverlay();
       updateStatus("Player 1 (Red)");
       updateFrameForCurrentPlayer();
+
+      // Reset the camera to a centred default view
+      userHasMovedCamera = false;
+      fitCameraToCube();
     }
 
     function undoMove() {
@@ -732,6 +779,11 @@
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
+
+      // If the user hasn't adjusted the view yet, keep the cube nicely centred and sized.
+      if (!userHasMovedCamera) {
+        fitCameraToCube();
+      }
     }
     window.addEventListener("resize", resize);
     resize();
