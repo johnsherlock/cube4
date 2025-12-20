@@ -13,9 +13,7 @@
     body { margin: 0; background:#0f1115; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
 
     /* Let OrbitControls own touch gestures on mobile */
-    canvas {
-      touch-action: none;
-    }
+    canvas { touch-action: none; }
 
     #ui {
       position: fixed; top: 12px; left: 12px; right: 12px;
@@ -39,8 +37,6 @@
       letter-spacing: 0.2px;
     }
     button.pill { cursor: pointer; }
-
-    #hint { opacity: 0.85; font-size: 13px; font-weight: 500; }
 
     #undoBtn, #resetBtn {
       padding: 12px 16px;
@@ -199,9 +195,7 @@
       pointer-events: none;
       user-select: none;
     }
-    #logo span {
-      color: #ff4b4b;
-    }
+    #logo span { color: #ff4b4b; }
   </style>
 
   <script type="importmap">
@@ -235,12 +229,14 @@
         <p><b>Goal:</b> be the first to make a line of <b>four</b> of your pieces in the 4×4×4 cube — in <b>any direction</b> (across rows, columns, verticals, or diagonals through space).</p>
         <ul>
           <li><b>Rotate:</b> click-and-drag</li>
-          <li><b>Zoom:</b> scroll wheel / trackpad</li>
-          <li><b>Place:</b> hover a marker and click (no gravity — any of the 64 spots)</li>
-          <li><b>Undo:</b> step back one move at a time</li>
+          <li><b>Zoom:</b> scroll wheel / pinch</li>
+          <li><b>Select a level:</b> click any marker (first click)</li>
+          <li><b>Place:</b> click a marker on the selected level (second click)</li>
+          <li><b>Deselect:</b> press <b>Esc</b> or click outside the cube</li>
+          <li><b>Undo:</b> undo the <b>last</b> move only</li>
           <li><b>Win:</b> winning 4 are outlined in yellow</li>
         </ul>
-        <p class="tiny">Tip: Hovering focuses a single <b>level</b> of the cube to make placements easier.</p>
+        <p class="tiny">Tip: Level selection focuses the cube layer to make placements easier.</p>
       </div>
       <div class="helpActions">
         <button class="pill" id="closeHelpBtn">Start playing</button>
@@ -282,8 +278,11 @@
     let currentPlayer = P1;
     let gameOver = false;
 
-    // Undo stack
-    const moveHistory = []; // {x,y,z, player}
+    // Undo (single-step only)
+    let lastMove = null; // {x,y,z, player} (only the most recent move)
+
+    // Two-click selection state (applies to desktop + mobile)
+    let selectedLevelZ = null;
 
     const wrap = document.getElementById("canvasWrap");
     const statusEl = document.getElementById("status");
@@ -296,6 +295,11 @@
     const closeHelpBtn = document.getElementById("closeHelpBtn");
     const closeHelpX = document.getElementById("closeHelpX");
 
+    const overlay = document.getElementById("overlay");
+    const overlayTitle = document.getElementById("overlayTitle");
+    const overlaySub = document.getElementById("overlaySub");
+    const playAgainBtn = document.getElementById("playAgainBtn");
+
     function showHelp() {
       helpOverlay.style.display = "flex";
       helpOverlay.setAttribute("aria-hidden", "false");
@@ -305,29 +309,29 @@
     function hideHelp() {
       helpOverlay.style.display = "none";
       helpOverlay.setAttribute("aria-hidden", "true");
-
-      // After closing the help card on mobile, ensure we start from a nicely centred view.
-      // Only do this if the user hasn't already interacted with the camera.
-      if (!userHasMovedCamera) {
-        fitCameraToCube();
-      }
+      if (!userHasMovedCamera) fitCameraToCube();
     }
 
-    // Show help on load (no "do not show again" preference)
+    // Show help on load
     showHelp();
 
     helpBtn.addEventListener("click", showHelp);
     closeHelpBtn.addEventListener("click", hideHelp);
     closeHelpX.addEventListener("click", hideHelp);
 
-    window.addEventListener("keydown", (ev) => {
-      if (ev.key === "Escape" && helpOverlay.style.display === "flex") hideHelp();
-    });
+    function clearSelection() {
+      selectedLevelZ = null;
+      clearLevelFocus();
+    }
 
-    const overlay = document.getElementById("overlay");
-    const overlayTitle = document.getElementById("overlayTitle");
-    const overlaySub = document.getElementById("overlaySub");
-    const playAgainBtn = document.getElementById("playAgainBtn");
+    window.addEventListener("keydown", (ev) => {
+      if (ev.key !== "Escape") return;
+      if (helpOverlay.style.display === "flex") {
+        hideHelp();
+        return;
+      }
+      clearSelection();
+    });
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0f1115);
@@ -351,27 +355,17 @@
     window.addEventListener('orientationchange', setVH);
     setVH();
 
-    // Give mobile browsers a tick to settle address bars, then re-apply sizing.
-    requestAnimationFrame(() => {
-      setVH();
-      resize();
-    });
-
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.target.set(0, 0, 0);
 
-    // Mobile/touch UX: 1 finger rotate, 2 fingers pinch-zoom.
-    // IMPORTANT: on phones it's very easy to accidentally pan and "lose" the cube,
-    // so we disable panning for coarse pointers to keep the cube centred.
+    // Touch UX
     const isCoarsePointer = matchMedia('(pointer: coarse)').matches;
-
     controls.enableZoom = true;
     controls.enablePan = !isCoarsePointer;
     controls.touches = {
       ONE: THREE.TOUCH.ROTATE,
-      // On mobile we want pinch-zoom without panning the target (keeps cube centred).
       TWO: isCoarsePointer ? THREE.TOUCH.DOLLY : THREE.TOUCH.DOLLY_PAN,
     };
     controls.zoomSpeed = 0.8;
@@ -379,15 +373,13 @@
     controls.screenSpacePanning = true;
 
     // Track whether the user has taken manual control of the camera.
-    // We only flip this to true on actual pointer interaction with the canvas (not on load).
     let userHasMovedCamera = false;
-    let initialFitDone = false; // ensures we fit once *after* correct aspect is known
-
+    let initialFitDone = false;
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.65));
-    const dir = new THREE.DirectionalLight(0xffffff, 0.9);
-    dir.position.set(8, 10, 6);
-    scene.add(dir);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+    dirLight.position.set(8, 10, 6);
+    scene.add(dirLight);
 
     const grid = new THREE.GridHelper(16, 16, 0x2a2f3a, 0x1d2230);
     grid.position.y = -2.2;
@@ -402,38 +394,29 @@
     const frame = new THREE.LineSegments(edges, frameMat);
     scene.add(frame);
 
-    // --- Camera fitting (helps mobile portrait by centring + zooming out by default) ---
-    // We know the cube frame is centred at the origin, but we still compute a fit size.
+    function playerHex(player) { return player === P1 ? 0xff4b4b : 0x4aa0ff; }
+
+    function updateFrameForCurrentPlayer() {
+      frameMat.color.setHex(playerHex(currentPlayer));
+    }
+
+    // --- Camera fitting ---
     const fitBox = new THREE.Box3().setFromObject(frame);
     const fitSize = new THREE.Vector3();
     const fitCenter = new THREE.Vector3();
     fitBox.getSize(fitSize);
     fitBox.getCenter(fitCenter);
-
-    // Defensive: keep the cube pinned to the true scene origin (helps some mobile browsers where
-    // OrbitControls can end up with a tiny target offset during init).
     fitCenter.set(0, 0, 0);
 
     function fitCameraToCube() {
-      // Fit the cube into view regardless of aspect ratio.
-      // Uses the largest dimension and camera vertical FOV.
       const maxDim = Math.max(fitSize.x, fitSize.y, fitSize.z);
       const fov = THREE.MathUtils.degToRad(camera.fov);
-
-      // For portrait (aspect < 1), increase distance a bit more.
       const aspect = camera.aspect || 1;
-      const aspectBoost = aspect < 1 ? (1 / aspect) : 1;
 
-      // Base distance so object fits vertically, with a margin.
-      // Slightly different framing on touch devices vs desktop.
-      const isCoarsePointer = matchMedia('(pointer: coarse)').matches;
-      const baseMargin = isCoarsePointer ? 4 : 3; // larger = zoom out more
-
+      const baseMargin = matchMedia('(pointer: coarse)').matches ? 4 : 3; // as per your tuning
       const portraitBoost = aspect < 1 ? Math.min(1 / aspect, 2.2) : 1;
-      // Margin tuned so the cube fits comfortably on both desktop and mobile.
       const distance = (maxDim * 0.5) / Math.tan(fov * 0.5) * baseMargin * portraitBoost;
 
-      // Place camera on a diagonal for a pleasing 3D view.
       const dir = new THREE.Vector3(1, 1, 1).normalize();
       camera.position.copy(fitCenter).addScaledVector(dir, distance);
       camera.near = Math.max(0.01, distance / 200);
@@ -443,12 +426,10 @@
       controls.target.copy(fitCenter);
       controls.update();
 
-      // Reasonable orbit limits
       controls.minDistance = distance * 0.35;
       controls.maxDistance = distance * 4.0;
     }
 
-    // Initial fit before first render
     fitCameraToCube();
 
     const cellGroup = new THREE.Group();
@@ -456,9 +437,7 @@
     scene.add(cellGroup);
     scene.add(pieceGroup);
 
-    // Map coordinates -> placed piece mesh
     const piecesByKey = new Map();
-    // Outline objects to clear on reset/undo
     const winOutlines = [];
 
     function keyOf(x,y,z){ return `${x},${y},${z}`; }
@@ -469,13 +448,22 @@
       return new THREE.Vector3(x - half, z - half, y - half);
     }
 
-    // Markers (click targets)
+    // Markers
     const markers = [];
     const markerGeom = new THREE.SphereGeometry(0.14, 16, 12);
+
+    function defaultMarkerHex() { return 0x9aa3b2; }
+
+    // Opacity tuning
+    const OP_BASE = 0.18;
+    const OP_OTHER_LEVELS = 0.08;
+    const OP_LEVEL_MAX = 0.78;
+    const OP_LEVEL_MIN = 0.48;
+
     const baseMarkerMat = new THREE.MeshStandardMaterial({
-      color: 0x9aa3b2,
+      color: defaultMarkerHex(),
       transparent: true,
-      opacity: 0.38,
+      opacity: OP_BASE,
       roughness: 0.4,
       metalness: 0.0
     });
@@ -492,30 +480,6 @@
       }
     }
 
-    // Hover highlight
-    let hovered = null;
-    const raycaster = new THREE.Raycaster();
-    const mouse = new THREE.Vector2();
-
-    function defaultMarkerHex() { return 0x9aa3b2; }
-    function playerHoverHex(player) { return player === P1 ? 0xff4b4b : 0x4aa0ff; }
-
-    function updateFrameForCurrentPlayer() {
-      frameMat.color.setHex(playerHoverHex(currentPlayer));
-    }
-
-    // Opacity tuning (user preference)
-    const OP_BASE = 0.18;         // default (no hover)
-    const OP_OTHER_LEVELS = 0.08; // other levels fade back when hovering
-    const OP_LEVEL_MAX = 0.78;    // same level (closest)
-    const OP_LEVEL_MIN = 0.48;    // same level (furthest)
-    const OP_HOVER = 0.90;        // hovered marker
-
-    // Level definition: same "z" index (the vertical layers in the logical 4x4x4 grid).
-    function isSameLevel(a, b) {
-      return a.z === b.z;
-    }
-
     function clearLevelFocus() {
       for (const m of markers) {
         if (!m.visible) continue;
@@ -527,44 +491,23 @@
     function applyLevelFocus(focus) {
       for (const m of markers) {
         if (!m.visible) continue;
-
         const u = m.userData;
-        if (isSameLevel(u, focus)) {
-          // distance within the level (x/y plane)
+        if (u.z === focus.z) {
           const dist = Math.abs(u.x - focus.x) + Math.abs(u.y - focus.y);
           const op = Math.max(OP_LEVEL_MIN, OP_LEVEL_MAX - dist * 0.10);
           m.material.opacity = op;
         } else {
           m.material.opacity = OP_OTHER_LEVELS;
         }
-
         m.material.color.setHex(defaultMarkerHex());
       }
     }
 
-    function setHovered(mesh) {
-      if (hovered === mesh) return;
-
-      if (hovered) hovered.scale.setScalar(1.0);
-      hovered = mesh;
-
-      if (!hovered) {
-        clearLevelFocus();
-        return;
-      }
-
-      applyLevelFocus(hovered.userData);
-
-      hovered.scale.setScalar(1.7);
-      hovered.material.opacity = OP_HOVER;
-      hovered.material.color.setHex(playerHoverHex(currentPlayer));
+    function inBounds(x,y,z) {
+      return x>=0 && y>=0 && z>=0 && x<SIZE && y<SIZE && z<SIZE;
     }
 
-    function refreshHoverColor() {
-      if (hovered) hovered.material.color.setHex(playerHoverHex(currentPlayer));
-    }
-
-    // Flat pieces (coin faces horizontal)
+    // Flat pieces
     function placePiece(x,y,z, player) {
       board[x][y][z] = player;
 
@@ -607,7 +550,6 @@
         outlineEdges,
         new THREE.LineBasicMaterial({ color: 0xffd400, transparent: true, opacity: 0.95 })
       );
-
       outline.position.copy(piece.position);
       outline.rotation.copy(piece.rotation);
       pieceGroup.add(outline);
@@ -619,14 +561,9 @@
       winOutlines.length = 0;
     }
 
-    function inBounds(x,y,z) {
-      return x>=0 && y>=0 && z>=0 && x<SIZE && y<SIZE && z<SIZE;
-    }
-
     // Returns winning 4 coordinates if win, otherwise null
     function getWinningLineFrom(x,y,z, player) {
       for (const [dx,dy,dz] of directions) {
-        // walk to the "start" of the line in -dir
         let sx = x, sy = y, sz = z;
         while (true) {
           const nx = sx - dx, ny = sy - dy, nz = sz - dz;
@@ -634,7 +571,6 @@
           sx = nx; sy = ny; sz = nz;
         }
 
-        // collect contiguous coords in +dir
         const line = [];
         let cx = sx, cy = sy, cz = sz;
         while (inBounds(cx,cy,cz) && board[cx][cy][cz] === player) {
@@ -676,69 +612,6 @@
       overlay.style.display = "none";
     }
 
-    function resetGame() {
-      board = makeEmptyBoard();
-      currentPlayer = P1;
-      gameOver = false;
-
-      // Clear pieces
-      while (pieceGroup.children.length) pieceGroup.remove(pieceGroup.children[0]);
-      piecesByKey.clear();
-
-      // Clear outlines
-      clearWinOutlines();
-
-      // Restore markers
-      for (const m of markers) {
-        m.visible = true;
-        m.scale.setScalar(1.0);
-        m.material.opacity = OP_BASE;
-        m.material.color.setHex(defaultMarkerHex());
-      }
-
-      // Clear undo stack
-      moveHistory.length = 0;
-      undoBtn.disabled = true;
-
-      setHovered(null);
-      hideOverlay();
-      updateStatus("Player 1 (Red)");
-      updateFrameForCurrentPlayer();
-
-      // Reset the camera to a centred default view
-      userHasMovedCamera = false;
-      initialFitDone = false;
-      fitCameraToCube();
-      initialFitDone = true;
-    }
-
-    function undoMove() {
-      if (moveHistory.length === 0) return;
-
-      // If we were in a win/draw state, clear it and allow play to continue
-      if (gameOver) {
-        gameOver = false;
-        hideOverlay();
-      }
-
-      clearWinOutlines();
-
-      const last = moveHistory.pop();
-      removePiece(last.x, last.y, last.z);
-
-      // set current player back to the one who made that move
-      currentPlayer = last.player;
-      updateStatus(`Player ${currentPlayer === P1 ? "1 (Red)" : "2 (Blue)"}`);
-      updateFrameForCurrentPlayer();
-      refreshHoverColor();
-
-      undoBtn.disabled = (moveHistory.length === 0);
-    }
-
-    undoBtn.addEventListener("click", undoMove);
-    resetBtn.addEventListener("click", resetGame);
-    playAgainBtn.addEventListener("click", resetGame);
-
     function makeEmptyBoard() {
       return Array.from({ length: SIZE }, () =>
         Array.from({ length: SIZE }, () =>
@@ -747,84 +620,85 @@
       );
     }
 
-    function onPointerMove(ev) {
-      const rect = renderer.domElement.getBoundingClientRect();
-      mouse.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
-      mouse.y = -(((ev.clientY - rect.top) / rect.height) * 2 - 1);
+    function resetGame() {
+      board = makeEmptyBoard();
+      currentPlayer = P1;
+      gameOver = false;
 
-      raycaster.setFromCamera(mouse, camera);
-      const hits = raycaster.intersectObjects(cellGroup.children, false);
-      const hit = hits.find(h => h.object.visible);
-      if (hit) setHovered(hit.object);
-      else setHovered(null);
+      while (pieceGroup.children.length) pieceGroup.remove(pieceGroup.children[0]);
+      piecesByKey.clear();
+      clearWinOutlines();
+
+      for (const m of markers) {
+        m.visible = true;
+        m.scale.setScalar(1.0);
+        m.material.opacity = OP_BASE;
+        m.material.color.setHex(defaultMarkerHex());
+      }
+
+      lastMove = null;
+      undoBtn.disabled = true;
+
+      clearSelection();
+      hideOverlay();
+      updateStatus("Player 1 (Red)");
+      updateFrameForCurrentPlayer();
+
+      userHasMovedCamera = false;
+      initialFitDone = false;
+      fitCameraToCube();
+      initialFitDone = true;
     }
 
-    // ---- Safe click gating to avoid accidental placements while rotating ----
-    // Also: avoid interfering with multi-touch gestures (pinch zoom) on mobile.
+    function undoMove() {
+      if (!lastMove) return;
+
+      if (gameOver) {
+        gameOver = false;
+        hideOverlay();
+      }
+
+      clearWinOutlines();
+
+      const last = lastMove;
+      lastMove = null;
+      removePiece(last.x, last.y, last.z);
+
+      currentPlayer = last.player;
+      updateStatus(`Player ${currentPlayer === P1 ? "1 (Red)" : "2 (Blue)"}`);
+      updateFrameForCurrentPlayer();
+
+      undoBtn.disabled = true;
+
+      // Undo clears any selection too (keeps UX clean)
+      clearSelection();
+    }
+
+    undoBtn.addEventListener("click", undoMove);
+    resetBtn.addEventListener("click", resetGame);
+    playAgainBtn.addEventListener("click", resetGame);
+
+    // --- Pointer handling: two-click/tap selection on ALL devices ---
+    const raycaster = new THREE.Raycaster();
+    const mouse = new THREE.Vector2();
+
+    // Safe click gating (avoid accidental placements while rotating) + don't interfere with pinch.
     let downPos = null;
     let downTime = 0;
 
-    const isTouch = matchMedia('(pointer: coarse)').matches;
-    const CLICK_MOVE_TOL = isTouch ? 14 : 6;     // pixels (finger drift vs mouse)
-    const CLICK_TIME_TOL = isTouch ? 800 : 650;  // ms
+    const CLICK_MOVE_TOL = matchMedia('(pointer: coarse)').matches ? 14 : 6;
+    const CLICK_TIME_TOL = matchMedia('(pointer: coarse)').matches ? 800 : 650;
 
-    // Track active pointers so we can detect multi-touch and skip placement logic.
     const activePointers = new Set();
     let hadMultiTouch = false;
 
-    function tryPlaceAtHover() {
-      if (gameOver) return;
-      if (!hovered) return;
-
-      const { x, y, z } = hovered.userData;
-      if (board[x][y][z] !== EMPTY) return;
-
-      const player = currentPlayer;
-      placePiece(x,y,z, player);
-      moveHistory.push({ x, y, z, player });
-      undoBtn.disabled = false;
-
-      // Win?
-      const winning4 = getWinningLineFrom(x,y,z, player);
-      if (winning4) {
-        clearWinOutlines();
-        for (const [wx,wy,wz] of winning4) {
-          const piece = piecesByKey.get(keyOf(wx,wy,wz));
-          if (piece) addWinOutlineToPiece(piece);
-        }
-
-        updateStatus(`Player ${player === P1 ? "1 (Red)" : "2 (Blue)"} wins!`);
-        // keep outline on the winner once the game ends
-        frameMat.color.setHex(playerHoverHex(player));
-        gameOver = true;
-        showOverlay("win", player);
-        return;
-      }
-
-      // Draw?
-      if (boardIsFull()) {
-        updateStatus("Draw!");
-        gameOver = true;
-        showOverlay("draw");
-        return;
-      }
-
-      currentPlayer = (currentPlayer === P1) ? P2 : P1;
-      updateStatus(`Player ${currentPlayer === P1 ? "1 (Red)" : "2 (Blue)"}`);
-      updateFrameForCurrentPlayer();
-      refreshHoverColor();
-    }
-
-    renderer.domElement.addEventListener("pointermove", onPointerMove);
-
     renderer.domElement.addEventListener("pointerdown", (ev) => {
-      // Any pointer interaction on the canvas counts as "user took control".
       userHasMovedCamera = true;
 
       activePointers.add(ev.pointerId);
       if (activePointers.size > 1) {
         hadMultiTouch = true;
-        downPos = null; // don't treat this as a click-to-place
+        downPos = null;
         return;
       }
 
@@ -843,7 +717,6 @@
     renderer.domElement.addEventListener("pointerup", (ev) => {
       activePointers.delete(ev.pointerId);
 
-      // If a pinch/2-finger gesture happened, never treat this sequence as a placement.
       if (hadMultiTouch) {
         if (activePointers.size === 0) hadMultiTouch = false;
         return;
@@ -856,12 +729,69 @@
       const dt = performance.now() - downTime;
       downPos = null;
 
-      // If the user dragged to rotate, ignore as a placement click
       if (dist > CLICK_MOVE_TOL) return;
-      // Ignore press-and-hold
       if (dt > CLICK_TIME_TOL) return;
 
-      tryPlaceAtHover();
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -(((ev.clientY - rect.top) / rect.height) * 2 - 1);
+
+      raycaster.setFromCamera(mouse, camera);
+      const hits = raycaster.intersectObjects(cellGroup.children, false);
+      const hit = hits.find(h => h.object.visible);
+
+      // Click outside cube => deselect
+      if (!hit) {
+        clearSelection();
+        return;
+      }
+
+      const { x, y, z } = hit.object.userData;
+
+      // First click: select a level
+      if (selectedLevelZ === null || selectedLevelZ !== z) {
+        selectedLevelZ = z;
+        applyLevelFocus({ x, y, z });
+        return;
+      }
+
+      // Second click (same level): place
+      if (gameOver) return;
+      if (board[x][y][z] !== EMPTY) return;
+
+      const player = currentPlayer;
+      placePiece(x,y,z, player);
+      lastMove = { x, y, z, player };
+      undoBtn.disabled = false;
+
+      // Clear selection after placing
+      clearSelection();
+
+      const winning4 = getWinningLineFrom(x,y,z, player);
+      if (winning4) {
+        clearWinOutlines();
+        for (const [wx,wy,wz] of winning4) {
+          const piece = piecesByKey.get(keyOf(wx,wy,wz));
+          if (piece) addWinOutlineToPiece(piece);
+        }
+
+        updateStatus(`Player ${player === P1 ? "1 (Red)" : "2 (Blue)"} wins!`);
+        frameMat.color.setHex(playerHex(player));
+        gameOver = true;
+        showOverlay("win", player);
+        return;
+      }
+
+      if (boardIsFull()) {
+        updateStatus("Draw!");
+        gameOver = true;
+        showOverlay("draw");
+        return;
+      }
+
+      currentPlayer = (currentPlayer === P1) ? P2 : P1;
+      updateStatus(`Player ${currentPlayer === P1 ? "1 (Red)" : "2 (Blue)"}`);
+      updateFrameForCurrentPlayer();
     });
 
     function resize() {
@@ -871,33 +801,33 @@
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
 
-      // Always perform one fit after we know the real aspect ratio (fixes mobile "pinned" starts).
       if (!initialFitDone) {
         fitCameraToCube();
         initialFitDone = true;
         return;
       }
 
-      // After that, only auto-fit if the user hasn't adjusted the view yet.
       if (!userHasMovedCamera) {
         fitCameraToCube();
       }
     }
+
     window.addEventListener("resize", resize);
 
-    // Mobile browsers can change the visual viewport without firing window.resize reliably.
-    // Observe the wrapper element and resize the renderer when its box changes.
+    // Visual viewport changes may not always fire window.resize reliably.
     const ro = new ResizeObserver(() => resize());
     ro.observe(wrap);
+
+    // One extra settle pass (mobile address bar)
+    requestAnimationFrame(() => {
+      setVH();
+      resize();
+    });
 
     resize();
 
     function tick() {
-      // On mobile, keep the orbit target pinned so the cube stays centred.
-      if (isCoarsePointer) {
-        controls.target.copy(fitCenter);
-      }
-
+      if (isCoarsePointer) controls.target.copy(fitCenter);
       controls.update();
       renderer.render(scene, camera);
       requestAnimationFrame(tick);
@@ -910,30 +840,26 @@
     }
 
     function runSelfTests() {
-      // Diagonal across XYZ should be detected
       board = makeEmptyBoard();
       for (let i=0; i<4; i++) board[i][i][i] = P1;
       const w1 = getWinningLineFrom(1,1,1,P1);
       assert(Array.isArray(w1) && w1.length === 4, "XYZ diagonal win not detected");
 
-      // Straight line in X should be detected
       board = makeEmptyBoard();
       for (let x=0; x<4; x++) board[x][0][0] = P2;
       const w2 = getWinningLineFrom(2,0,0,P2);
       assert(Array.isArray(w2) && w2.length === 4, "X-axis win not detected");
 
-      // Straight line in Z should be detected
       board = makeEmptyBoard();
       for (let z=0; z<4; z++) board[0][0][z] = P1;
       const w3 = getWinningLineFrom(0,0,2,P1);
       assert(Array.isArray(w3) && w3.length === 4, "Z-axis win not detected");
 
-      // No win should be reported for a scattered pattern
       board = makeEmptyBoard();
       board[0][0][0] = P1;
       board[1][1][0] = P1;
       board[2][2][1] = P1;
-      board[3][3][2] = P1; // not a straight line (z differs)
+      board[3][3][2] = P1;
       const w4 = getWinningLineFrom(3,3,2,P1);
       assert(w4 === null, "False positive win detected");
 
