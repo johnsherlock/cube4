@@ -6,7 +6,16 @@
   <title>CUBE-4 – 3D Four-in-a-Row</title>
   <style>
     :root { color-scheme: dark; }
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
     body { margin: 0; background:#0f1115; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+
+    /* Let OrbitControls own touch gestures on mobile */
+    canvas {
+      touch-action: none;
+    }
 
     #ui {
       position: fixed; top: 12px; left: 12px; right: 12px;
@@ -121,7 +130,9 @@
     }
     .helpClose:hover { background: rgba(255,255,255,0.10); }
 
-    #canvasWrap { width: 100vw; height: 100vh; }
+    #canvasWrap { width: 100vw; height: 100dvh; }
+    /* Fallback for browsers that misreport 100vh (older mobile Safari) */
+    #canvasWrap.vhfix { height: calc(var(--vh, 1vh) * 100); }
 
     /* Win banner – top centre, non-blocking */
     #overlay {
@@ -298,10 +309,29 @@
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
     wrap.appendChild(renderer.domElement);
 
+    // Mobile viewport-height fix (avoids 100vh issues with address bars)
+    function setVH() {
+      document.documentElement.style.setProperty('--vh', `${window.innerHeight * 0.01}px`);
+      wrap.classList.add('vhfix');
+    }
+    window.addEventListener('resize', setVH);
+    window.addEventListener('orientationchange', setVH);
+    setVH();
+
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.target.set(0, 0, 0);
+
+    // Mobile/touch UX: 1 finger rotate, 2 fingers pinch-zoom + pan
+    controls.enableZoom = true;
+    controls.enablePan = true;
+    controls.touches = {
+      ONE: THREE.TOUCH.ROTATE,
+      TWO: THREE.TOUCH.DOLLY_PAN,
+    };
+    controls.zoomSpeed = 0.8;
+    controls.rotateSpeed = 0.8;
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.65));
     const dir = new THREE.DirectionalLight(0xffffff, 0.9);
@@ -626,8 +656,10 @@
     // ---- Safe click gating to avoid accidental placements while rotating ----
     let downPos = null;
     let downTime = 0;
-    const CLICK_MOVE_TOL = 6;    // pixels
-    const CLICK_TIME_TOL = 650;  // ms
+    
+    const isTouch = matchMedia('(pointer: coarse)').matches;
+    const CLICK_MOVE_TOL = isTouch ? 14 : 6;     // pixels (finger drift vs mouse)
+    const CLICK_TIME_TOL = isTouch ? 800 : 650;  // ms
 
     function tryPlaceAtHover() {
       if (gameOver) return;
