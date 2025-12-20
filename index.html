@@ -33,16 +33,40 @@
       border-radius: 999px;
       padding: 10px 14px;
       color: #fff;
-            user-select: none;
-      font-weight: 600;
+      user-select: none;
+      font-weight: 700;
       letter-spacing: 0.2px;
+      white-space: nowrap;
     }
+
+    .pill.small { padding: 10px 12px; font-weight: 800; }
+
     button.pill { cursor: pointer; }
+
+    select.pill {
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      padding-right: 34px;
+      background-image:
+        linear-gradient(45deg, transparent 50%, rgba(255,255,255,0.75) 50%),
+        linear-gradient(135deg, rgba(255,255,255,0.75) 50%, transparent 50%);
+      background-position:
+        calc(100% - 18px) 50%,
+        calc(100% - 12px) 50%;
+      background-size: 6px 6px, 6px 6px;
+      background-repeat: no-repeat;
+    }
+    select.pill:focus, button.pill:focus {
+      outline: 2px solid rgba(255,255,255,0.18);
+      outline-offset: 2px;
+    }
 
     #undoBtn, #resetBtn {
       padding: 12px 16px;
       font-size: 14px;
-      font-weight: 800;
+      font-weight: 900;
       border: 1px solid rgba(255,255,255,0.18);
     }
     #undoBtn:disabled {
@@ -50,7 +74,7 @@
       cursor: default;
     }
 
-    /* Small ? button */
+    /* Small icon button */
     button.pill.icon {
       width: 38px;
       height: 38px;
@@ -61,10 +85,11 @@
       font-weight: 900;
       line-height: 1;
       border-radius: 999px;
+      font-size: 18px;
     }
 
-    /* Help overlay: does NOT dim/blur, and does NOT block the canvas */
-    #helpOverlay {
+    /* Overlays */
+    .overlay {
       position: fixed;
       inset: 0;
       display: none;
@@ -73,59 +98,82 @@
       z-index: 30;
       background: transparent;
       backdrop-filter: none;
-      pointer-events: none; /* allow orbit/zoom/click-through to the canvas */
     }
 
-    #helpCard {
+    /* Help overlay: does NOT dim/blur, and does NOT block the canvas */
+    #helpOverlay { pointer-events: none; }
+
+    .card {
       position: relative;
-      pointer-events: auto; /* card is interactive */
+      pointer-events: auto;
       width: min(720px, calc(100vw - 44px));
       border-radius: 18px;
-      background: rgba(16, 18, 24, 0.62); /* transparent so grid is visible */
+      background: rgba(16, 18, 24, 0.62);
       border: 1px solid rgba(255,255,255,0.18);
       box-shadow: 0 18px 60px rgba(0,0,0,0.55);
       padding: 18px 18px 14px;
       color: #fff;
     }
 
-    #helpTitle {
+    .cardTitle {
       margin: 0 0 10px 0;
       font-size: 28px;
       font-weight: 900;
       letter-spacing: 0.6px;
     }
 
-    .helpBody p { margin: 10px 0; opacity: 0.95; }
+    .helpBody p, .settingsBody p { margin: 10px 0; opacity: 0.95; }
     .helpBody ul { margin: 10px 0 8px 18px; padding: 0; opacity: 0.92; }
     .helpBody li { margin: 6px 0; }
     .helpBody .tiny { opacity: 0.75; font-size: 13px; }
 
-    .helpActions {
+    .actions {
       margin-top: 14px;
       display: flex;
       justify-content: flex-end;
       gap: 10px;
     }
 
-    .helpClose {
+    /* Settings overlay blocks the canvas so players can safely change options */
+    #settingsOverlay { pointer-events: auto; }
+    #settingsOverlay::before {
+      content: "";
       position: absolute;
-      top: 10px;
-      right: 12px;
-      width: 36px;
-      height: 36px;
-      border-radius: 999px;
-      border: 1px solid rgba(255,255,255,0.18);
-      background: rgba(255,255,255,0.06);
-      color: #fff;
-      font-size: 22px;
-      font-weight: 900;
-      line-height: 1;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
+      inset: 0;
+      background: transparent;
     }
-    .helpClose:hover { background: rgba(255,255,255,0.10); }
+
+    .settingsBody {
+      display: grid;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .row {
+      display: grid;
+      grid-template-columns: 160px 1fr;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .row label {
+      opacity: 0.9;
+      font-weight: 800;
+      letter-spacing: 0.2px;
+      font-size: 13px;
+    }
+
+    .row .hint {
+      grid-column: 2;
+      opacity: 0.75;
+      font-size: 12px;
+      margin-top: -6px;
+    }
+
+    @media (max-width: 520px) {
+      .row { grid-template-columns: 1fr; }
+      .row .hint { grid-column: 1; }
+    }
 
     #canvasWrap {
       position: fixed;
@@ -133,7 +181,6 @@
       width: 100vw;
       height: 100dvh;
     }
-    /* Fallback for browsers that misreport 100vh (older mobile Safari) */
     #canvasWrap.vhfix { height: calc(var(--vh, 1vh) * 100); }
 
     /* Win banner – top centre, non-blocking */
@@ -159,17 +206,18 @@
     }
 
     #overlayTitle {
-      font-size: 32px;
+      font-size: 30px;
       margin: 0 0 6px 0;
-      font-weight: 900;
+      font-weight: 1000;
       letter-spacing: 1px;
     }
 
     #overlaySub {
       margin: 0 0 10px 0;
-      opacity: 0.85;
-      font-weight: 600;
+      opacity: 0.88;
+      font-weight: 700;
       font-size: 14px;
+      line-height: 1.35;
     }
 
     #playAgainBtn {
@@ -179,7 +227,7 @@
       color: #fff;
       border-radius: 999px;
       padding: 8px 14px;
-      font-weight: 800;
+      font-weight: 900;
       letter-spacing: 0.3px;
     }
 
@@ -189,7 +237,7 @@
       left: 14px;
       bottom: 14px;
       z-index: 5;
-      font-weight: 900;
+      font-weight: 1000;
       letter-spacing: 1.5px;
       font-size: 30px;
       color: rgba(255,255,255,0.65);
@@ -197,6 +245,15 @@
       user-select: none;
     }
     #logo span { color: #ff4b4b; }
+
+    /* Score pill look more like a scoreboard */
+    #score {
+      font-weight: 900;
+      letter-spacing: 0.4px;
+      opacity: 0.95;
+    }
+    #score .lbl { opacity: 0.8; font-weight: 800; margin-right: 8px; }
+
   </style>
 
   <script type="importmap">
@@ -212,20 +269,21 @@
 <body>
   <div id="ui">
     <div id="left">
-      <div class="pill" id="status">Player 1 (Red)</div>
+      <div class="pill" id="status">Current Player: Red</div>
+      <div class="pill" id="score"><span class="lbl">SCORE</span><span id="scoreText">Red 0 – 0 Blue</span></div>
     </div>
     <div id="right">
       <button class="pill" id="undoBtn" disabled>Undo</button>
       <button class="pill" id="resetBtn">Reset</button>
-      <button class="pill icon" id="helpBtn" title="Help" aria-label="Help">?</button>
+      <button class="pill icon" id="helpBtn" title="Rules" aria-label="Rules">?</button>
+      <button class="pill icon" id="settingsBtn" title="Options" aria-label="Options">⚙</button>
     </div>
   </div>
 
-  <!-- Welcome / Help overlay (non-blocking) -->
-  <div id="helpOverlay" aria-hidden="true">
-    <div id="helpCard" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
-      <h1 id="helpTitle">Welcome to CUBE-4</h1>
-      <button class="helpClose" id="closeHelpX" title="Close" aria-label="Close">×</button>
+  <!-- Welcome / Rules overlay (non-blocking) -->
+  <div class="overlay" id="helpOverlay" aria-hidden="true">
+    <div class="card" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+      <h1 class="cardTitle" id="helpTitle">Welcome to CUBE-4</h1>
       <div class="helpBody">
         <p><b>Goal:</b> be the first to make a line of <b>four</b> of your pieces in the 4×4×4 cube — in <b>any direction</b> (across rows, columns, verticals, or diagonals through space).</p>
         <ul>
@@ -239,15 +297,68 @@
         </ul>
         <p class="tiny">Tip: Level selection focuses the cube layer to make placements easier.</p>
       </div>
-      <div class="helpActions">
-        <button class="pill" id="closeHelpBtn">Start playing</button>
+      <div class="actions">
+        <button class="pill" id="helpPrimaryBtn">Start playing</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Options overlay (blocks gameplay) -->
+  <div class="overlay" id="settingsOverlay" aria-hidden="true">
+    <div class="card" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <h1 class="cardTitle" id="settingsTitle">Match Options</h1>
+      <div class="settingsBody">
+        <div class="row">
+          <label for="playersSel">Players</label>
+          <select class="pill" id="playersSel">
+            <option value="1">One Player</option>
+            <option value="2" selected>Two Player</option>
+          </select>
+        </div>
+
+        <div class="row" id="difficultyRow" style="display:none;">
+          <label for="difficultySel">Computer Difficulty</label>
+          <select class="pill" id="difficultySel">
+            <option value="easy">Easy</option>
+            <option value="medium" selected>Medium</option>
+            <option value="expert">Expert</option>
+          </select>
+          <div class="hint">Applies only in one-player mode.</div>
+        </div>
+
+        <div class="row">
+          <label for="firstMoveSel">First Move</label>
+          <select class="pill" id="firstMoveSel">
+            <option value="red">Red</option>
+            <option value="blue">Blue</option>
+            <option value="random" selected>Random</option>
+            <option value="winner">Winner</option>
+            <option value="alternate">Alternate</option>
+          </select>
+        </div>
+
+        <div class="row">
+          <label for="matchSel">Match style</label>
+          <select class="pill" id="matchSel">
+            <option value="bo3">Best of 3</option>
+            <option value="bo5">Best of 5</option>
+            <option value="unbounded" selected>Unbounded</option>
+          </select>
+        </div>
+
+        <p class="tiny" style="margin-top:6px; opacity:0.78;">
+          Changing <b>Players</b> or <b>Computer Difficulty</b> restarts the game and wipes the scoreboard.
+        </p>
+      </div>
+      <div class="actions">
+        <button class="pill" id="closeSettingsBtn">Start match</button>
       </div>
     </div>
   </div>
 
   <div id="overlay">
     <div id="overlayCard">
-      <h1 id="overlayTitle">PLAYER 1 WINS!</h1>
+      <h1 id="overlayTitle">RED WINS!</h1>
       <p id="overlaySub">Rotate and zoom to inspect the winning line.</p>
       <button id="playAgainBtn">Play again</button>
     </div>
@@ -265,6 +376,9 @@
     const SIZE = 4;
     const EMPTY = 0, P1 = 1, P2 = 2;
 
+    const LS_KEY = "cube4_settings_v2";
+    const LS_SCORE_KEY = "cube4_score_v2";
+
     // 13 unique directions for 3D 4-in-a-row
     const directions = [
       [1,0,0],[0,1,0],[0,0,1],
@@ -275,37 +389,164 @@
       [1,-1,1],[1,-1,-1],
     ];
 
+    // Precompute all winning lines (arrays of 4 coords)
+    const WIN_LINES = (() => {
+      const lines = [];
+      const seen = new Set();
+      const keyOfLine = (line) => line.map(([x,y,z]) => `${x}${y}${z}`).join("|");
+
+      for (let x=0; x<SIZE; x++) {
+        for (let y=0; y<SIZE; y++) {
+          for (let z=0; z<SIZE; z++) {
+            for (const [dx,dy,dz] of directions) {
+              const line = [];
+              for (let i=0; i<4; i++) {
+                const nx = x + dx*i;
+                const ny = y + dy*i;
+                const nz = z + dz*i;
+                if (nx<0||ny<0||nz<0||nx>=SIZE||ny>=SIZE||nz>=SIZE) { line.length = 0; break; }
+                line.push([nx,ny,nz]);
+              }
+              if (line.length === 4) {
+                const sorted = [...line].sort((a,b)=> (a[0]-b[0]) || (a[1]-b[1]) || (a[2]-b[2]));
+                const k = keyOfLine(sorted);
+                if (!seen.has(k)) { seen.add(k); lines.push(line); }
+              }
+            }
+          }
+        }
+      }
+      return lines;
+    })();
+
+    // --- State ---
     let board = makeEmptyBoard();
     let currentPlayer = P1;
     let gameOver = false;
 
     // Undo (single-step only)
-    let lastMove = null; // {x,y,z, player} (only the most recent move)
+    let lastMove = null; // {x,y,z, player}
+
+    // Scoreboard (persisted)
+    let winsP1 = 0;
+    let winsP2 = 0;
+    let lastWinner = null; // P1/P2
+    let lastStartingPlayer = null; // P1/P2
+
+    // Settings
+    // playersCount: 1 or 2
+    // aiDifficulty: easy|medium|expert
+    // firstMovePolicy: red|blue|random|winner|alternate
+    // matchStyle: unbounded | bo3 | bo5
+    let playersCount = 2;
+    let aiDifficulty = "medium";
+    let firstMovePolicy = "random";
+    let matchStyle = "unbounded";
+
+    const aiPlayer = P2; // AI is always Blue
 
     // Two-click selection state (applies to desktop + mobile)
     let selectedLevelZ = null;
 
+    // --- UI elements ---
     const wrap = document.getElementById("canvasWrap");
     const statusEl = document.getElementById("status");
-    const statusPill = statusEl; // same element, styled as a pill
+    const statusPill = statusEl;
+
+    const scoreTextEl = document.getElementById("scoreText");
+
     const undoBtn = document.getElementById("undoBtn");
     const resetBtn = document.getElementById("resetBtn");
 
-    // Help elements
     const helpBtn = document.getElementById("helpBtn");
+    const settingsBtn = document.getElementById("settingsBtn");
+
     const helpOverlay = document.getElementById("helpOverlay");
-    const closeHelpBtn = document.getElementById("closeHelpBtn");
-    const closeHelpX = document.getElementById("closeHelpX");
+    const helpPrimaryBtn = document.getElementById("helpPrimaryBtn");
+
+    const settingsOverlay = document.getElementById("settingsOverlay");
+    const playersSel = document.getElementById("playersSel");
+    const difficultySel = document.getElementById("difficultySel");
+    const difficultyRow = document.getElementById("difficultyRow");
+    const firstMoveSel = document.getElementById("firstMoveSel");
+    const matchSel = document.getElementById("matchSel");
+    const closeSettingsBtn = document.getElementById("closeSettingsBtn");
 
     const overlay = document.getElementById("overlay");
     const overlayTitle = document.getElementById("overlayTitle");
     const overlaySub = document.getElementById("overlaySub");
     const playAgainBtn = document.getElementById("playAgainBtn");
 
-    function showHelp() {
+    // --- Persistence ---
+    function loadPersisted() {
+      try {
+        const s = JSON.parse(localStorage.getItem(LS_KEY) || "null");
+        if (s && typeof s === "object") {
+          if (s.playersCount === 1 || s.playersCount === 2) playersCount = s.playersCount;
+          if (s.aiDifficulty) aiDifficulty = s.aiDifficulty;
+          if (s.firstMovePolicy) firstMovePolicy = s.firstMovePolicy;
+          if (s.matchStyle) matchStyle = s.matchStyle;
+          if (s.lastWinner === P1 || s.lastWinner === P2) lastWinner = s.lastWinner;
+          if (s.lastStartingPlayer === P1 || s.lastStartingPlayer === P2) lastStartingPlayer = s.lastStartingPlayer;
+        }
+      } catch {}
+
+      try {
+        const sc = JSON.parse(localStorage.getItem(LS_SCORE_KEY) || "null");
+        if (sc && typeof sc === "object") {
+          winsP1 = Number(sc.winsP1) || 0;
+          winsP2 = Number(sc.winsP2) || 0;
+        }
+      } catch {}
+    }
+
+    function savePersisted() {
+      try {
+        localStorage.setItem(LS_KEY, JSON.stringify({
+          playersCount,
+          aiDifficulty,
+          firstMovePolicy,
+          matchStyle,
+          lastWinner,
+          lastStartingPlayer,
+        }));
+      } catch {}
+
+      try {
+        localStorage.setItem(LS_SCORE_KEY, JSON.stringify({ winsP1, winsP2 }));
+      } catch {}
+    }
+
+    function wipeScoreboard() {
+      winsP1 = 0;
+      winsP2 = 0;
+      lastWinner = null;
+      savePersisted();
+      updateScoreUI();
+    }
+
+    function updateScoreUI() {
+      scoreTextEl.textContent = `Red ${winsP1} – ${winsP2} Blue`;
+    }
+
+    // --- Overlay utilities ---
+    let helpMode = "welcome"; // welcome|rules
+    let hasCompletedWelcome = false;
+
+    function showHelp(mode) {
+      helpMode = mode;
       helpOverlay.style.display = "flex";
       helpOverlay.setAttribute("aria-hidden", "false");
-      closeHelpBtn?.focus?.();
+
+      if (mode === "welcome") {
+        document.getElementById("helpTitle").textContent = "Welcome to CUBE-4";
+        helpPrimaryBtn.textContent = "Start playing";
+      } else {
+        document.getElementById("helpTitle").textContent = "How to play";
+        helpPrimaryBtn.textContent = "Continue";
+      }
+
+      helpPrimaryBtn?.focus?.();
     }
 
     function hideHelp() {
@@ -314,32 +555,32 @@
       if (!userHasMovedCamera) fitCameraToCube();
     }
 
-    // Show help on load
-    showHelp();
-
-    helpBtn.addEventListener("click", showHelp);
-    closeHelpBtn.addEventListener("click", hideHelp);
-    closeHelpX.addEventListener("click", hideHelp);
-
-    function clearSelection() {
-      selectedLevelZ = null;
-      clearLevelFocus();
+    function showSettings() {
+      syncSettingsUI();
+      settingsOverlay.style.display = "flex";
+      settingsOverlay.setAttribute("aria-hidden", "false");
+      closeSettingsBtn.textContent = hasCompletedWelcome ? "Apply" : "Start match";
+      closeSettingsBtn?.focus?.();
     }
 
-    window.addEventListener("keydown", (ev) => {
-      if (ev.key !== "Escape") return;
+    function hideSettings() {
+      settingsOverlay.style.display = "none";
+      settingsOverlay.setAttribute("aria-hidden", "true");
+    }
 
-      // Esc always closes the help overlay if it's open.
-      if (helpOverlay.style.display === "flex") {
-        hideHelp();
-        return;
-      }
+    function syncSettingsUI() {
+      playersSel.value = String(playersCount);
+      difficultySel.value = aiDifficulty;
+      firstMoveSel.value = firstMovePolicy;
+      matchSel.value = matchStyle;
+      difficultyRow.style.display = (playersCount === 1) ? "grid" : "none";
+    }
 
-      // Desktop: Esc deselects.
-      // Mobile: keep selection (deselect only by tapping outside the cube).
-      if (!isCoarsePointer) clearSelection();
-    });
+    function isAITurn() {
+      return (playersCount === 1) && (currentPlayer === aiPlayer);
+    }
 
+    // --- THREE setup ---
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0f1115);
 
@@ -353,7 +594,7 @@
     renderer.domElement.style.display = "block";
     wrap.appendChild(renderer.domElement);
 
-    // Mobile viewport-height fix (avoids 100vh issues with address bars)
+    // Mobile viewport-height fix
     function setVH() {
       document.documentElement.style.setProperty('--vh', `${window.innerHeight * 0.01}px`);
       wrap.classList.add('vhfix');
@@ -367,13 +608,11 @@
     controls.dampingFactor = 0.08;
     controls.target.set(0, 0, 0);
 
-    // Touch UX
     const isCoarsePointer = matchMedia('(pointer: coarse)').matches;
     controls.enableZoom = true;
-    controls.enablePan = true; // allow 2-finger pan on mobile too
+    controls.enablePan = true;
     controls.enableRotate = true;
 
-    // Mobile/touch: 1 finger rotate, 2 fingers pinch-zoom + pan
     controls.touches = {
       ONE: THREE.TOUCH.ROTATE,
       TWO: THREE.TOUCH.DOLLY_PAN,
@@ -384,14 +623,11 @@
     controls.panSpeed = 0.8;
     controls.screenSpacePanning = true;
 
-    // iOS Safari can be finicky about pinch/scroll gestures; be explicit.
-    // This does NOT disable OrbitControls — it helps ensure the gesture reaches the canvas.
+    // Ensure touch gestures don’t scroll the page.
     renderer.domElement.addEventListener('touchmove', (e) => {
-      // Prevent page scroll/zoom while interacting with the canvas
       e.preventDefault();
     }, { passive: false });
 
-    // Track whether the user has taken manual control of the camera.
     let userHasMovedCamera = false;
     let initialFitDone = false;
 
@@ -414,6 +650,7 @@
     scene.add(frame);
 
     function playerHex(player) { return player === P1 ? 0xff4b4b : 0x4aa0ff; }
+    function playerName(player) { return player === P1 ? "Red" : "Blue"; }
 
     function updateFrameForCurrentPlayer() {
       frameMat.color.setHex(playerHex(currentPlayer));
@@ -432,7 +669,8 @@
       const fov = THREE.MathUtils.degToRad(camera.fov);
       const aspect = camera.aspect || 1;
 
-      const baseMargin = matchMedia('(pointer: coarse)').matches ? 1.5 : 3; // as per your tuning
+      // baseMargin 4 mobile / 3 desktop (as per your tweak)
+      const baseMargin = matchMedia('(pointer: coarse)').matches ? 4 : 3;
       const portraitBoost = aspect < 1 ? Math.min(1 / aspect, 2.2) : 1;
       const distance = (maxDim * 0.5) / Math.tan(fov * 0.5) * baseMargin * portraitBoost;
 
@@ -520,6 +758,11 @@
         }
         m.material.color.setHex(defaultMarkerHex());
       }
+    }
+
+    function clearSelection() {
+      selectedLevelZ = null;
+      clearLevelFocus();
     }
 
     function inBounds(x,y,z) {
@@ -610,29 +853,225 @@
       return true;
     }
 
-    function styleStatusForPlayer(player) {
-      const hex = playerHex(player);
-      // Subtle but clear tint for the status pill
-      statusPill.style.setProperty('--pill-accent', `rgba(${(hex>>16)&255}, ${(hex>>8)&255}, ${hex&255}, 0.28)`);
-      statusPill.style.borderColor = `rgba(${(hex>>16)&255}, ${(hex>>8)&255}, ${hex&255}, 0.45)`;
+    function checkWin(player) {
+      for (const line of WIN_LINES) {
+        let ok = true;
+        for (const [x,y,z] of line) {
+          if (board[x][y][z] !== player) { ok = false; break; }
+        }
+        if (ok) return line;
+      }
+      return null;
     }
 
-    function updateStatus(text) {
-      statusEl.textContent = text;
-      // Keep the pill colour aligned to the current player during play
-      styleStatusForPlayer(currentPlayer);
+    function legalMoves() {
+      const moves = [];
+      for (let x=0; x<SIZE; x++)
+        for (let y=0; y<SIZE; y++)
+          for (let z=0; z<SIZE; z++)
+            if (board[x][y][z] === EMPTY) moves.push([x,y,z]);
+      return moves;
+    }
+
+    function heuristicScore(forPlayer) {
+      const opp = (forPlayer === P1) ? P2 : P1;
+      const weights = { 1: 1, 2: 6, 3: 28 };
+      let score = 0;
+
+      // Center preference
+      const center = 1.5;
+      for (let x=0; x<SIZE; x++)
+        for (let y=0; y<SIZE; y++)
+          for (let z=0; z<SIZE; z++) {
+            const v = board[x][y][z];
+            if (v === EMPTY) continue;
+            const dist = Math.abs(x-center)+Math.abs(y-center)+Math.abs(z-center);
+            const bonus = (3.5 - dist);
+            score += (v === forPlayer ? 1 : -1) * bonus;
+          }
+
+      for (const line of WIN_LINES) {
+        let fp = 0, op = 0;
+        for (const [x,y,z] of line) {
+          const v = board[x][y][z];
+          if (v === forPlayer) fp++;
+          else if (v === opp) op++;
+        }
+        if (fp > 0 && op > 0) continue;
+        if (fp > 0) score += weights[fp] || 0;
+        if (op > 0) score -= (weights[op] || 0);
+      }
+      return score;
+    }
+
+    function tryImmediate(player) {
+      for (const [x,y,z] of legalMoves()) {
+        board[x][y][z] = player;
+        const win = checkWin(player);
+        board[x][y][z] = EMPTY;
+        if (win) return [x,y,z];
+      }
+      return null;
+    }
+
+    function negamax(depth, alpha, beta, player, rootPlayer) {
+      const opp = (player === P1) ? P2 : P1;
+      const winLine = checkWin(opp);
+      if (winLine) return -100000 - depth;
+      if (boardIsFull() || depth === 0) return heuristicScore(rootPlayer);
+
+      let best = -Infinity;
+      const moves = legalMoves();
+      moves.sort((a,b) => {
+        const ca = Math.abs(a[0]-1.5)+Math.abs(a[1]-1.5)+Math.abs(a[2]-1.5);
+        const cb = Math.abs(b[0]-1.5)+Math.abs(b[1]-1.5)+Math.abs(b[2]-1.5);
+        return ca - cb;
+      });
+
+      for (const [x,y,z] of moves) {
+        board[x][y][z] = player;
+        const score = -negamax(depth-1, -beta, -alpha, opp, rootPlayer);
+        board[x][y][z] = EMPTY;
+
+        if (score > best) best = score;
+        if (score > alpha) alpha = score;
+        if (alpha >= beta) break;
+      }
+
+      return best;
+    }
+
+    function chooseAIMove() {
+      const winNow = tryImmediate(aiPlayer);
+      if (winNow) return winNow;
+      const block = tryImmediate(P1);
+      if (block) return block;
+
+      const moves = legalMoves();
+      if (moves.length === 0) return null;
+
+      if (aiDifficulty === "easy") {
+        if (Math.random() < 0.35) return moves[(Math.random()*moves.length)|0];
+        let best = null;
+        let bestScore = -Infinity;
+        const sample = moves.slice().sort(()=>Math.random()-0.5).slice(0, Math.min(12, moves.length));
+        for (const [x,y,z] of sample) {
+          board[x][y][z] = aiPlayer;
+          const s = heuristicScore(aiPlayer);
+          board[x][y][z] = EMPTY;
+          if (s > bestScore) { bestScore = s; best = [x,y,z]; }
+        }
+        return best || moves[(Math.random()*moves.length)|0];
+      }
+
+      if (aiDifficulty === "medium") {
+        let best = null;
+        let bestScore = -Infinity;
+        for (const [x,y,z] of moves) {
+          board[x][y][z] = aiPlayer;
+          const oppWin = tryImmediate(P1);
+          let s = heuristicScore(aiPlayer);
+          if (oppWin) s -= 5000;
+          board[x][y][z] = EMPTY;
+          if (s > bestScore) { bestScore = s; best = [x,y,z]; }
+        }
+        return best;
+      }
+
+      // Expert: shallow minimax + a little randomness so it's beatable
+      const depth = 3;
+      let bestMoves = [];
+      let bestScore = -Infinity;
+
+      for (const [x,y,z] of moves) {
+        board[x][y][z] = aiPlayer;
+        const s = -negamax(depth-1, -Infinity, Infinity, P1, aiPlayer);
+        board[x][y][z] = EMPTY;
+
+        if (s > bestScore) {
+          bestScore = s;
+          bestMoves = [[x,y,z]];
+        } else if (s === bestScore) {
+          bestMoves.push([x,y,z]);
+        }
+      }
+
+      if (bestMoves.length === 0) return moves[(Math.random()*moves.length)|0];
+      if (Math.random() < 0.10) return bestMoves[(Math.random()*bestMoves.length)|0];
+      return bestMoves[0];
+    }
+
+    function maybeAIMove() {
+      if (playersCount !== 1) return;
+      if (gameOver) return;
+      if (currentPlayer !== aiPlayer) return;
+
+      setTimeout(() => {
+        if (playersCount !== 1 || gameOver || currentPlayer !== aiPlayer) return;
+
+        const mv = chooseAIMove();
+        if (!mv) return;
+        const [x,y,z] = mv;
+        if (board[x][y][z] !== EMPTY) return;
+
+        const player = aiPlayer;
+        placePiece(x,y,z, player);
+        lastMove = { x, y, z, player };
+        undoBtn.disabled = false;
+        clearSelection();
+
+        const winning4 = getWinningLineFrom(x,y,z, player);
+        if (winning4) {
+          finishWin(player, winning4);
+          return;
+        }
+
+        if (boardIsFull()) {
+          updateStatusForPlayer(currentPlayer);
+          gameOver = true;
+          showOverlay("draw");
+          return;
+        }
+
+        currentPlayer = P1;
+        updateStatusForPlayer(currentPlayer);
+        updateFrameForCurrentPlayer();
+      }, 320);
+    }
+
+    // --- Status / overlay ---
+    function setPillAccentForPlayer(el, player, alpha=0.28, borderAlpha=0.45) {
+      const hex = playerHex(player);
+      el.style.setProperty('--pill-accent', `rgba(${(hex>>16)&255}, ${(hex>>8)&255}, ${hex&255}, ${alpha})`);
+      el.style.borderColor = `rgba(${(hex>>16)&255}, ${(hex>>8)&255}, ${hex&255}, ${borderAlpha})`;
+    }
+
+    function updateStatusForPlayer(player) {
+      statusEl.textContent = `Current Player: ${playerName(player)}`;
+      setPillAccentForPlayer(statusPill, player, 0.30, 0.55);
     }
 
     function showOverlay(kind, player) {
       overlay.style.display = "flex";
+
       if (kind === "win") {
-        overlayTitle.textContent = `PLAYER ${player === P1 ? "1" : "2"} WINS!`;
+        overlayTitle.textContent = `${playerName(player).toUpperCase()} WINS!`;
         overlayTitle.style.color = player === P1 ? "#ff4b4b" : "#4aa0ff";
-        overlaySub.textContent = "Rotate and zoom to inspect the winning line.";
+
+        const scoreLine = `Match score: Red ${winsP1} – ${winsP2} Blue`;
+        const matchOver = isMatchOver();
+        if (matchOver) {
+          overlaySub.textContent = `${scoreLine}\nMATCH OVER — ${playerName(player)} wins ${matchStyleLabel()}.`;
+        } else {
+          overlaySub.textContent = `${scoreLine}\nRotate and zoom to inspect the winning line.`;
+        }
+
+        playAgainBtn.textContent = matchOver ? "New match" : "Next game";
       } else {
         overlayTitle.textContent = "DRAW!";
         overlayTitle.style.color = "#ffffff";
-        overlaySub.textContent = "No more moves. Rotate/zoom to inspect the final board.";
+        overlaySub.textContent = `Match score: Red ${winsP1} – ${winsP2} Blue\nNo more moves. Rotate/zoom to inspect the final board.`;
+        playAgainBtn.textContent = "Next game";
       }
     }
 
@@ -640,6 +1079,42 @@
       overlay.style.display = "none";
     }
 
+    function matchStyleTargetWins() {
+      if (matchStyle === "bo3") return 2;
+      if (matchStyle === "bo5") return 3;
+      return Infinity;
+    }
+
+    function matchStyleLabel() {
+      if (matchStyle === "bo3") return "Best of 3";
+      if (matchStyle === "bo5") return "Best of 5";
+      return "Unbounded";
+    }
+
+    function isMatchOver() {
+      const target = matchStyleTargetWins();
+      return winsP1 >= target || winsP2 >= target;
+    }
+
+    function finishWin(player, winning4) {
+      clearWinOutlines();
+      for (const [wx,wy,wz] of winning4) {
+        const piece = piecesByKey.get(keyOf(wx,wy,wz));
+        if (piece) addWinOutlineToPiece(piece);
+      }
+
+      frameMat.color.setHex(playerHex(player));
+      gameOver = true;
+
+      if (player === P1) winsP1++; else winsP2++;
+      lastWinner = player;
+      updateScoreUI();
+      savePersisted();
+
+      showOverlay("win", player);
+    }
+
+    // --- Game lifecycle ---
     function makeEmptyBoard() {
       return Array.from({ length: SIZE }, () =>
         Array.from({ length: SIZE }, () =>
@@ -648,11 +1123,19 @@
       );
     }
 
-    function resetGame() {
-      board = makeEmptyBoard();
+    function chooseStartingPlayer() {
+      if (firstMovePolicy === "red") return P1;
+      if (firstMovePolicy === "blue") return P2;
 
-      // Randomise starting player each new game
-      currentPlayer = Math.random() < 0.5 ? P1 : P2;
+      if (firstMovePolicy === "winner" && (lastWinner === P1 || lastWinner === P2)) return lastWinner;
+      if (firstMovePolicy === "alternate" && (lastStartingPlayer === P1 || lastStartingPlayer === P2)) {
+        return lastStartingPlayer === P1 ? P2 : P1;
+      }
+      return Math.random() < 0.5 ? P1 : P2;
+    }
+
+    function resetBoardOnly() {
+      board = makeEmptyBoard();
       gameOver = false;
 
       while (pieceGroup.children.length) pieceGroup.remove(pieceGroup.children[0]);
@@ -671,13 +1154,27 @@
 
       clearSelection();
       hideOverlay();
-      updateStatus(`Player ${currentPlayer === P1 ? "1 (Red)" : "2 (Blue)"}`);
+
+      // (Re)choose starting player for next game.
+      currentPlayer = chooseStartingPlayer();
+      lastStartingPlayer = currentPlayer;
+
+      updateStatusForPlayer(currentPlayer);
       updateFrameForCurrentPlayer();
+
+      savePersisted();
 
       userHasMovedCamera = false;
       initialFitDone = false;
       fitCameraToCube();
       initialFitDone = true;
+
+      maybeAIMove();
+    }
+
+    function resetMatch() {
+      wipeScoreboard();
+      resetBoardOnly();
     }
 
     function undoMove() {
@@ -694,28 +1191,123 @@
       lastMove = null;
       removePiece(last.x, last.y, last.z);
 
+      // Undo does NOT roll back scoreboard
       currentPlayer = last.player;
-      updateStatus(`Player ${currentPlayer === P1 ? "1 (Red)" : "2 (Blue)"}`);
+      updateStatusForPlayer(currentPlayer);
       updateFrameForCurrentPlayer();
 
       undoBtn.disabled = true;
-
-      // Undo clears any selection too (keeps UX clean)
       clearSelection();
     }
 
     undoBtn.addEventListener("click", undoMove);
-    resetBtn.addEventListener("click", resetGame);
-    playAgainBtn.addEventListener("click", resetGame);
+    resetBtn.addEventListener("click", resetMatch);
 
-    // --- Pointer handling: two-click/tap selection on ALL devices ---
+    playAgainBtn.addEventListener("click", () => {
+      if (isMatchOver()) {
+        resetMatch();
+      } else {
+        resetBoardOnly();
+      }
+    });
+
+    // --- Settings apply ---
+    function applySettingsFromUI({ isInitial=false } = {}) {
+      const prevPlayersCount = playersCount;
+      const prevDifficulty = aiDifficulty;
+
+      playersCount = Number(playersSel.value) === 1 ? 1 : 2;
+      aiDifficulty = difficultySel.value;
+      firstMovePolicy = firstMoveSel.value;
+      matchStyle = matchSel.value;
+
+      const playersChanged = (playersCount !== prevPlayersCount);
+      const difficultyChanged = (playersCount === 1) && (aiDifficulty !== prevDifficulty);
+
+      // Update visibility
+      difficultyRow.style.display = (playersCount === 1) ? "grid" : "none";
+
+      // If players/difficulty changed: wipe scoreboard and restart
+      if (playersChanged || difficultyChanged) {
+        wipeScoreboard();
+      }
+
+      savePersisted();
+
+      // Always restart the board when applying settings to avoid weird mid-game transitions.
+      resetBoardOnly();
+
+      if (isInitial) {
+        hasCompletedWelcome = true;
+      }
+    }
+
+    playersSel.addEventListener("change", () => {
+      const next = Number(playersSel.value);
+      difficultyRow.style.display = (next === 1) ? "grid" : "none";
+    });
+
+    // --- Help / Settings wiring ---
+    helpBtn.addEventListener("click", () => {
+      // Opening rules during play: just show rules, close does NOT open settings.
+      showHelp("rules");
+    });
+
+    settingsBtn.addEventListener("click", () => {
+      showSettings();
+    });
+
+    helpPrimaryBtn.addEventListener("click", () => {
+      if (helpMode === "welcome") {
+        // First time flow: welcome -> options
+        hideHelp();
+        showSettings();
+      } else {
+        // Rules view during play
+        hideHelp();
+      }
+    });
+
+    closeSettingsBtn.addEventListener("click", () => {
+      applySettingsFromUI({ isInitial: !hasCompletedWelcome });
+      hideSettings();
+
+      if (!hasCompletedWelcome) {
+        hasCompletedWelcome = true;
+      }
+    });
+
+    // NOTE: welcome has no X and no esc-to-close.
+    window.addEventListener("keydown", (ev) => {
+      if (ev.key !== "Escape") return;
+
+      // Esc closes rules (not welcome)
+      if (helpOverlay.style.display === "flex" && helpMode === "rules") {
+        hideHelp();
+        return;
+      }
+
+      // Desktop: Esc deselects.
+      // Mobile: keep selection (deselect only by tapping outside the cube).
+      if (!isCoarsePointer && settingsOverlay.style.display !== "flex" && helpOverlay.style.display !== "flex") {
+        clearSelection();
+      }
+    });
+
+    // Clicking outside the settings card closes it
+    settingsOverlay.addEventListener("pointerdown", (ev) => {
+      if (ev.target === settingsOverlay) {
+        hideSettings();
+      }
+    });
+
+    // --- Pointer handling: two-click selection on ALL devices ---
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
-    // Safe click gating (avoid accidental placements while rotating) + don't interfere with pinch.
+    // Safe click gating + don't interfere with pinch
     let downPos = null;
     let downTime = 0;
-
     const CLICK_MOVE_TOL = matchMedia('(pointer: coarse)').matches ? 14 : 6;
     const CLICK_TIME_TOL = matchMedia('(pointer: coarse)').matches ? 800 : 650;
 
@@ -724,6 +1316,9 @@
 
     renderer.domElement.addEventListener("pointerdown", (ev) => {
       userHasMovedCamera = true;
+
+      // If an overlay that blocks interaction is open, ignore
+      if (settingsOverlay.style.display === "flex") return;
 
       activePointers.add(ev.pointerId);
       if (activePointers.size > 1) {
@@ -747,6 +1342,8 @@
     renderer.domElement.addEventListener("pointerup", (ev) => {
       activePointers.delete(ev.pointerId);
 
+      if (settingsOverlay.style.display === "flex") return;
+
       if (hadMultiTouch) {
         if (activePointers.size === 0) hadMultiTouch = false;
         return;
@@ -762,6 +1359,8 @@
       if (dist > CLICK_MOVE_TOL) return;
       if (dt > CLICK_TIME_TOL) return;
 
+      // If a non-blocking help is open (rules), allow the click-through.
+
       const rect = renderer.domElement.getBoundingClientRect();
       mouse.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
       mouse.y = -(((ev.clientY - rect.top) / rect.height) * 2 - 1);
@@ -770,11 +1369,14 @@
       const hits = raycaster.intersectObjects(cellGroup.children, false);
       const hit = hits.find(h => h.object.visible);
 
-      // Tap/click outside cube => deselect (both desktop + mobile)
+      // Click outside cube => deselect
       if (!hit) {
         clearSelection();
         return;
       }
+
+      // If it's AI's turn, ignore player interaction
+      if (isAITurn()) return;
 
       const { x, y, z } = hit.object.userData;
 
@@ -796,7 +1398,7 @@
         return;
       }
 
-      // Second click (same level): place
+      // Second click on same level: place
       if (gameOver) return;
       if (board[x][y][z] !== EMPTY) return;
 
@@ -805,34 +1407,25 @@
       lastMove = { x, y, z, player };
       undoBtn.disabled = false;
 
-      // Clear selection after placing
       clearSelection();
 
       const winning4 = getWinningLineFrom(x,y,z, player);
       if (winning4) {
-        clearWinOutlines();
-        for (const [wx,wy,wz] of winning4) {
-          const piece = piecesByKey.get(keyOf(wx,wy,wz));
-          if (piece) addWinOutlineToPiece(piece);
-        }
-
-        updateStatus(`Player ${player === P1 ? "1 (Red)" : "2 (Blue)"} wins!`);
-        frameMat.color.setHex(playerHex(player));
-        gameOver = true;
-        showOverlay("win", player);
+        finishWin(player, winning4);
         return;
       }
 
       if (boardIsFull()) {
-        updateStatus("Draw!");
         gameOver = true;
         showOverlay("draw");
         return;
       }
 
       currentPlayer = (currentPlayer === P1) ? P2 : P1;
-      updateStatus(`Player ${currentPlayer === P1 ? "1 (Red)" : "2 (Blue)"}`);
+      updateStatusForPlayer(currentPlayer);
       updateFrameForCurrentPlayer();
+
+      maybeAIMove();
     });
 
     function resize() {
@@ -855,11 +1448,9 @@
 
     window.addEventListener("resize", resize);
 
-    // Visual viewport changes may not always fire window.resize reliably.
     const ro = new ResizeObserver(() => resize());
     ro.observe(wrap);
 
-    // One extra settle pass (mobile address bar)
     requestAnimationFrame(() => {
       setVH();
       resize();
@@ -868,13 +1459,19 @@
     resize();
 
     function tick() {
-      // Don't force the target every frame; it can interfere with touch dolly/pan on mobile.
-      // We keep the cube centred via fitCameraToCube() and OrbitControls target updates.
       controls.update();
       renderer.render(scene, camera);
       requestAnimationFrame(tick);
     }
     tick();
+
+    // --- Init ---
+    loadPersisted();
+    updateScoreUI();
+    syncSettingsUI();
+
+    // Welcome on load (no close X, no esc-to-close)
+    showHelp("welcome");
 
     // --- Lightweight self-tests (run once, no UI impact) ---
     function assert(cond, msg) {
@@ -882,21 +1479,25 @@
     }
 
     function runSelfTests() {
+      // XYZ diagonal should be detected
       board = makeEmptyBoard();
       for (let i=0; i<4; i++) board[i][i][i] = P1;
       const w1 = getWinningLineFrom(1,1,1,P1);
       assert(Array.isArray(w1) && w1.length === 4, "XYZ diagonal win not detected");
 
+      // X line
       board = makeEmptyBoard();
       for (let x=0; x<4; x++) board[x][0][0] = P2;
       const w2 = getWinningLineFrom(2,0,0,P2);
       assert(Array.isArray(w2) && w2.length === 4, "X-axis win not detected");
 
+      // Z line
       board = makeEmptyBoard();
       for (let z=0; z<4; z++) board[0][0][z] = P1;
       const w3 = getWinningLineFrom(0,0,2,P1);
       assert(Array.isArray(w3) && w3.length === 4, "Z-axis win not detected");
 
+      // No false positives
       board = makeEmptyBoard();
       board[0][0][0] = P1;
       board[1][1][0] = P1;
@@ -905,12 +1506,26 @@
       const w4 = getWinningLineFrom(3,3,2,P1);
       assert(w4 === null, "False positive win detected");
 
+      // AI immediate win test
+      board = makeEmptyBoard();
+      board[0][0][0] = P2;
+      board[1][0][0] = P2;
+      board[2][0][0] = P2;
+      aiDifficulty = "medium";
+      const mv = tryImmediate(P2);
+      assert(Array.isArray(mv) && mv[0] === 3 && mv[1] === 0 && mv[2] === 0, "AI immediate win not found");
+
       board = makeEmptyBoard();
     }
 
     runSelfTests();
-    resetGame();
-    // resetGame() already calls updateFrameForCurrentPlayer() and updateStatus()
+
+    // Set initial status + frame
+    currentPlayer = chooseStartingPlayer();
+    lastStartingPlayer = currentPlayer;
+    updateStatusForPlayer(currentPlayer);
+    updateFrameForCurrentPlayer();
+
   </script>
 </body>
 </html>
