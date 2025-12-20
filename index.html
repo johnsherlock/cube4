@@ -425,7 +425,7 @@
       const fov = THREE.MathUtils.degToRad(camera.fov);
       const aspect = camera.aspect || 1;
 
-      const baseMargin = matchMedia('(pointer: coarse)').matches ? 4 : 3; // as per your tuning
+      const baseMargin = matchMedia('(pointer: coarse)').matches ? 1.5 : 3; // as per your tuning
       const portraitBoost = aspect < 1 ? Math.min(1 / aspect, 2.2) : 1;
       const distance = (maxDim * 0.5) / Math.tan(fov * 0.5) * baseMargin * portraitBoost;
 
