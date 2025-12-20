@@ -740,12 +740,17 @@
     }
 
     // ---- Safe click gating to avoid accidental placements while rotating ----
+    // Also: avoid interfering with multi-touch gestures (pinch zoom) on mobile.
     let downPos = null;
     let downTime = 0;
-    
+
     const isTouch = matchMedia('(pointer: coarse)').matches;
     const CLICK_MOVE_TOL = isTouch ? 14 : 6;     // pixels (finger drift vs mouse)
     const CLICK_TIME_TOL = isTouch ? 800 : 650;  // ms
+
+    // Track active pointers so we can detect multi-touch and skip placement logic.
+    const activePointers = new Set();
+    let hadMultiTouch = false;
 
     function tryPlaceAtHover() {
       if (gameOver) return;
@@ -796,11 +801,34 @@
       // Any pointer interaction on the canvas counts as "user took control".
       userHasMovedCamera = true;
 
+      activePointers.add(ev.pointerId);
+      if (activePointers.size > 1) {
+        hadMultiTouch = true;
+        downPos = null; // don't treat this as a click-to-place
+        return;
+      }
+
       downPos = { x: ev.clientX, y: ev.clientY };
       downTime = performance.now();
     });
 
+    renderer.domElement.addEventListener("pointercancel", (ev) => {
+      activePointers.delete(ev.pointerId);
+      if (activePointers.size === 0) {
+        downPos = null;
+        hadMultiTouch = false;
+      }
+    });
+
     renderer.domElement.addEventListener("pointerup", (ev) => {
+      activePointers.delete(ev.pointerId);
+
+      // If a pinch/2-finger gesture happened, never treat this sequence as a placement.
+      if (hadMultiTouch) {
+        if (activePointers.size === 0) hadMultiTouch = false;
+        return;
+      }
+
       if (!downPos) return;
       const dx = ev.clientX - downPos.x;
       const dy = ev.clientY - downPos.y;
