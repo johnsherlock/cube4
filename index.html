@@ -218,6 +218,7 @@
       font-weight: 700;
       font-size: 14px;
       line-height: 1.35;
+      white-space: pre-line;
     }
 
     #playAgainBtn {
@@ -254,7 +255,54 @@
     }
     #score .lbl { opacity: 0.8; font-weight: 800; margin-right: 8px; }
 
-  </style>
+    /* Mobile layout: stack score + current player; use a compact menu in the top-right */
+    @media (max-width: 520px) {
+      #ui { top: 10px; left: 10px; right: 10px; }
+
+      #left {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+        min-width: 0;
+      }
+
+      /* Top-right menu */
+      #right {
+        position: fixed;
+        right: 12px;
+        top: 12px;
+        bottom: auto;
+        left: auto;
+        flex-direction: row;
+        align-items: center;
+        gap: 10px;
+        pointer-events: none;
+      }
+      #right > * { pointer-events: auto; }
+
+      /* Hide individual buttons on mobile; show dropdown instead */
+      #undoBtn, #resetBtn, #helpBtn, #settingsBtn { display: none !important; }
+      #mobileMenuWrap { display: block; }
+
+      /* Make pills slightly more compact */
+      .pill { padding: 9px 12px; font-size: 13px; }
+
+      /* Prevent score cropping on narrow screens */
+      #score { max-width: calc(100vw - 24px); }
+      #scoreText {
+        display: inline-block;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        vertical-align: bottom;
+      }
+    }
+
+    /* Desktop: hide mobile menu wrapper */
+@media (min-width: 521px) {
+  #mobileMenuWrap { display: none; }
+}
+</style>
 
   <script type="importmap">
   {
@@ -277,10 +325,21 @@
       <button class="pill" id="resetBtn">Reset</button>
       <button class="pill icon" id="helpBtn" title="Rules" aria-label="Rules">?</button>
       <button class="pill icon" id="settingsBtn" title="Options" aria-label="Options">⚙</button>
+
+      <!-- Mobile-only compact menu (top-right) -->
+      <div id="mobileMenuWrap" aria-label="Menu">
+        <select class="pill" id="mobileMenu">
+          <option value="" selected>Menu</option>
+          <option value="undo" id="mobileUndoOpt">Undo Last Move</option>
+          <option value="reset">Reset Match</option>
+          <option value="options">Match Options</option>
+          <option value="help">Help</option>
+        </select>
+      </div>
     </div>
   </div>
 
-  <!-- Welcome / Rules overlay (non-blocking) -->
+  <!-- Help overlay (welcome / rules). Non-blocking so the user can still rotate/zoom behind it. -->
   <div class="overlay" id="helpOverlay" aria-hidden="true">
     <div class="card" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
       <h1 class="cardTitle" id="helpTitle">Welcome to CUBE-4</h1>
@@ -288,14 +347,11 @@
         <p><b>Goal:</b> be the first to make a line of <b>four</b> of your pieces in the 4×4×4 cube — in <b>any direction</b> (across rows, columns, verticals, or diagonals through space).</p>
         <ul>
           <li><b>Rotate:</b> click-and-drag</li>
-          <li><b>Zoom:</b> scroll wheel / pinch</li>
-          <li><b>Select a level:</b> click any marker (first click)</li>
-          <li><b>Place:</b> click a marker on the selected level (second click)</li>
-          <li><b>Deselect:</b> click outside the cube (desktop also supports <b>Esc</b>)</li>
-          <li><b>Undo:</b> undo the <b>last</b> move only</li>
+          <li><b>Zoom:</b> scroll wheel / trackpad (pinch on mobile)</li>
+          <li><b>Place:</b> tap/click once to select a level, then tap/click a spot to place</li>
           <li><b>Win:</b> winning 4 are outlined in yellow</li>
         </ul>
-        <p class="tiny">Tip: Level selection focuses the cube layer to make placements easier.</p>
+        <p class="tiny">Tip: Selecting a level focuses that slice of the cube.</p>
       </div>
       <div class="actions">
         <button class="pill" id="helpPrimaryBtn">Start playing</button>
@@ -351,6 +407,20 @@
       </div>
       <div class="actions">
         <button class="pill" id="closeSettingsBtn">Start match</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm reset overlay -->
+  <div class="overlay" id="confirmOverlay" aria-hidden="true">
+    <div class="card" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" style="width:min(520px, calc(100vw - 44px));">
+      <h1 class="cardTitle" id="confirmTitle">Reset match?</h1>
+      <div class="settingsBody">
+        <p>Are you sure you want to reset the match? This will wipe the scoreboard.</p>
+      </div>
+      <div class="actions">
+        <button class="pill" id="confirmNoBtn">No</button>
+        <button class="pill" id="confirmYesBtn">Yes</button>
       </div>
     </div>
   </div>
@@ -434,10 +504,6 @@
     let lastStartingPlayer = null; // P1/P2
 
     // Settings
-    // playersCount: 1 or 2
-    // aiDifficulty: easy|medium|expert
-    // firstMovePolicy: red|blue|random|winner|alternate
-    // matchStyle: unbounded | bo3 | bo5
     let playersCount = 1;
     let aiDifficulty = "easy";
     let firstMovePolicy = "alternate";
@@ -445,7 +511,7 @@
 
     const aiPlayer = P2; // AI is always Blue
 
-    // Two-click selection state (applies to desktop + mobile)
+    // Two-click selection state
     let selectedLevelZ = null;
 
     // --- UI elements ---
@@ -461,6 +527,10 @@
     const helpBtn = document.getElementById("helpBtn");
     const settingsBtn = document.getElementById("settingsBtn");
 
+    // Mobile menu
+    const mobileMenu = document.getElementById("mobileMenu");
+    const mobileUndoOpt = document.getElementById("mobileUndoOpt");
+
     const helpOverlay = document.getElementById("helpOverlay");
     const helpPrimaryBtn = document.getElementById("helpPrimaryBtn");
 
@@ -471,6 +541,11 @@
     const firstMoveSel = document.getElementById("firstMoveSel");
     const matchSel = document.getElementById("matchSel");
     const closeSettingsBtn = document.getElementById("closeSettingsBtn");
+
+    // Confirm reset
+    const confirmOverlay = document.getElementById("confirmOverlay");
+    const confirmYesBtn = document.getElementById("confirmYesBtn");
+    const confirmNoBtn = document.getElementById("confirmNoBtn");
 
     const overlay = document.getElementById("overlay");
     const overlayTitle = document.getElementById("overlayTitle");
@@ -533,19 +608,24 @@
     let helpMode = "welcome"; // welcome|rules
     let hasCompletedWelcome = false;
 
-    function showHelp(mode) {
-      helpMode = mode;
-      helpOverlay.style.display = "flex";
-      helpOverlay.setAttribute("aria-hidden", "false");
+    function setHelpCopy(mode) {
+      const titleEl = document.getElementById("helpTitle");
+      if (!titleEl) return;
 
       if (mode === "welcome") {
-        document.getElementById("helpTitle").textContent = "Welcome to CUBE-4";
+        titleEl.textContent = "Welcome to CUBE-4";
         helpPrimaryBtn.textContent = "Start playing";
       } else {
-        document.getElementById("helpTitle").textContent = "How to play";
+        titleEl.textContent = "How to play";
         helpPrimaryBtn.textContent = "Continue";
       }
+    }
 
+    function showHelp(mode) {
+      helpMode = mode;
+      setHelpCopy(mode);
+      helpOverlay.style.display = "flex";
+      helpOverlay.setAttribute("aria-hidden", "false");
       helpPrimaryBtn?.focus?.();
     }
 
@@ -568,12 +648,37 @@
       settingsOverlay.setAttribute("aria-hidden", "true");
     }
 
+    function showConfirmReset() {
+      confirmOverlay.style.display = "flex";
+      confirmOverlay.setAttribute("aria-hidden", "false");
+      confirmNoBtn?.focus?.();
+    }
+
+    function hideConfirmReset() {
+      confirmOverlay.style.display = "none";
+      confirmOverlay.setAttribute("aria-hidden", "true");
+    }
+
     function syncSettingsUI() {
       playersSel.value = String(playersCount);
       difficultySel.value = aiDifficulty;
       firstMoveSel.value = firstMovePolicy;
       matchSel.value = matchStyle;
       difficultyRow.style.display = (playersCount === 1) ? "grid" : "none";
+      updateUndoVisibility();
+      updateMobileMenuUndoVisibility();
+    }
+
+    function updateUndoVisibility() {
+      const show = (playersCount === 2);
+      undoBtn.style.display = show ? "inline-flex" : "none";
+      if (!show) undoBtn.disabled = true;
+    }
+
+    function updateMobileMenuUndoVisibility() {
+      if (!mobileUndoOpt) return;
+      const show = (playersCount === 2);
+      mobileUndoOpt.style.display = show ? "block" : "none";
     }
 
     function isAITurn() {
@@ -669,7 +774,7 @@
       const fov = THREE.MathUtils.degToRad(camera.fov);
       const aspect = camera.aspect || 1;
 
-      // baseMargin 4 mobile / 3 desktop (as per your tweak)
+      // baseMargin 4 mobile / 3 desktop (your tweak)
       const baseMargin = matchMedia('(pointer: coarse)').matches ? 1.6 : 3;
       const portraitBoost = aspect < 1 ? Math.min(1 / aspect, 2.2) : 1;
       const distance = (maxDim * 0.5) / Math.tan(fov * 0.5) * baseMargin * portraitBoost;
@@ -683,8 +788,8 @@
       controls.target.copy(fitCenter);
       controls.update();
 
-      controls.minDistance = distance * 0.35;
-      controls.maxDistance = distance * 4.0;
+      controls.minDistance = distance * 0.20; // allow closer zoom on mobile too
+      controls.maxDistance = distance * 6.0;
     }
 
     fitCameraToCube();
@@ -978,7 +1083,7 @@
         return best;
       }
 
-      // Expert: shallow minimax + a little randomness so it's beatable
+      // Expert
       const depth = 3;
       let bestMoves = [];
       let bestScore = -Infinity;
@@ -1029,7 +1134,6 @@
         }
 
         if (boardIsFull()) {
-          updateStatusForPlayer(currentPlayer);
           gameOver = true;
           showOverlay("draw");
           return;
@@ -1157,7 +1261,6 @@
       clearSelection();
       hideOverlay();
 
-      // (Re)choose starting player for next game.
       currentPlayer = chooseStartingPlayer();
       lastStartingPlayer = currentPlayer;
 
@@ -1193,7 +1296,6 @@
       lastMove = null;
       removePiece(last.x, last.y, last.z);
 
-      // Undo does NOT roll back scoreboard
       currentPlayer = last.player;
       updateStatusForPlayer(currentPlayer);
       updateFrameForCurrentPlayer();
@@ -1203,7 +1305,9 @@
     }
 
     undoBtn.addEventListener("click", undoMove);
-    resetBtn.addEventListener("click", resetMatch);
+    resetBtn.addEventListener("click", () => {
+      resetMatch();
+    });
 
     playAgainBtn.addEventListener("click", () => {
       if (isMatchOver()) {
@@ -1226,17 +1330,15 @@
       const playersChanged = (playersCount !== prevPlayersCount);
       const difficultyChanged = (playersCount === 1) && (aiDifficulty !== prevDifficulty);
 
-      // Update visibility
       difficultyRow.style.display = (playersCount === 1) ? "grid" : "none";
+      updateUndoVisibility();
+      updateMobileMenuUndoVisibility();
 
-      // If players/difficulty changed: wipe scoreboard and restart
       if (playersChanged || difficultyChanged) {
         wipeScoreboard();
       }
 
       savePersisted();
-
-      // Always restart the board when applying settings to avoid weird mid-game transitions.
       resetBoardOnly();
 
       if (isInitial) {
@@ -1251,7 +1353,6 @@
 
     // --- Help / Settings wiring ---
     helpBtn.addEventListener("click", () => {
-      // Opening rules during play: just show rules, close does NOT open settings.
       showHelp("rules");
     });
 
@@ -1259,13 +1360,45 @@
       showSettings();
     });
 
-    helpPrimaryBtn.addEventListener("click", () => {
+    // Mobile dropdown menu actions
+    mobileMenu?.addEventListener("change", () => {
+      const v = mobileMenu.value;
+      mobileMenu.value = "";
+
+      if (v === "undo") {
+        if (playersCount === 2) undoMove();
+        return;
+      }
+      if (v === "reset") {
+        showConfirmReset();
+        return;
+      }
+      if (v === "options") {
+        showSettings();
+        return;
+      }
+      if (v === "help") {
+        showHelp("rules");
+        return;
+      }
+    });
+
+    // Confirm reset handlers
+    confirmNoBtn?.addEventListener("click", hideConfirmReset);
+    confirmYesBtn?.addEventListener("click", () => {
+      hideConfirmReset();
+      resetMatch();
+    });
+
+    confirmOverlay?.addEventListener("pointerdown", (ev) => {
+      if (ev.target === confirmOverlay) hideConfirmReset();
+    });
+
+    helpPrimaryBtn?.addEventListener("click", () => {
       if (helpMode === "welcome") {
-        // First time flow: welcome -> options
         hideHelp();
         showSettings();
       } else {
-        // Rules view during play
         hideHelp();
       }
     });
@@ -1273,13 +1406,10 @@
     closeSettingsBtn.addEventListener("click", () => {
       applySettingsFromUI({ isInitial: !hasCompletedWelcome });
       hideSettings();
-
-      if (!hasCompletedWelcome) {
-        hasCompletedWelcome = true;
-      }
+      if (!hasCompletedWelcome) hasCompletedWelcome = true;
     });
 
-    // NOTE: welcome has no X and no esc-to-close.
+    // NOTE: welcome has no esc-to-close.
     window.addEventListener("keydown", (ev) => {
       if (ev.key !== "Escape") return;
 
@@ -1290,7 +1420,7 @@
       }
 
       // Desktop: Esc deselects.
-      // Mobile: keep selection (deselect only by tapping outside the cube).
+      // Mobile: deselect only by tapping outside cube.
       if (!isCoarsePointer && settingsOverlay.style.display !== "flex" && helpOverlay.style.display !== "flex") {
         clearSelection();
       }
@@ -1298,9 +1428,7 @@
 
     // Clicking outside the settings card closes it
     settingsOverlay.addEventListener("pointerdown", (ev) => {
-      if (ev.target === settingsOverlay) {
-        hideSettings();
-      }
+      if (ev.target === settingsOverlay) hideSettings();
     });
 
     // --- Pointer handling: two-click selection on ALL devices ---
@@ -1319,7 +1447,6 @@
     renderer.domElement.addEventListener("pointerdown", (ev) => {
       userHasMovedCamera = true;
 
-      // If an overlay that blocks interaction is open, ignore
       if (settingsOverlay.style.display === "flex") return;
 
       activePointers.add(ev.pointerId);
@@ -1360,8 +1487,6 @@
 
       if (dist > CLICK_MOVE_TOL) return;
       if (dt > CLICK_TIME_TOL) return;
-
-      // If a non-blocking help is open (rules), allow the click-through.
 
       const rect = renderer.domElement.getBoundingClientRect();
       mouse.x = ((ev.clientX - rect.left) / rect.width) * 2 - 1;
@@ -1471,35 +1596,33 @@
     loadPersisted();
     updateScoreUI();
     syncSettingsUI();
+    updateUndoVisibility();
+    updateMobileMenuUndoVisibility();
 
     // Welcome on load (no close X, no esc-to-close)
     showHelp("welcome");
 
-    // --- Lightweight self-tests (run once, no UI impact) ---
+    // --- Lightweight self-tests ---
     function assert(cond, msg) {
       if (!cond) throw new Error(`Self-test failed: ${msg}`);
     }
 
     function runSelfTests() {
-      // XYZ diagonal should be detected
       board = makeEmptyBoard();
       for (let i=0; i<4; i++) board[i][i][i] = P1;
       const w1 = getWinningLineFrom(1,1,1,P1);
       assert(Array.isArray(w1) && w1.length === 4, "XYZ diagonal win not detected");
 
-      // X line
       board = makeEmptyBoard();
       for (let x=0; x<4; x++) board[x][0][0] = P2;
       const w2 = getWinningLineFrom(2,0,0,P2);
       assert(Array.isArray(w2) && w2.length === 4, "X-axis win not detected");
 
-      // Z line
       board = makeEmptyBoard();
       for (let z=0; z<4; z++) board[0][0][z] = P1;
       const w3 = getWinningLineFrom(0,0,2,P1);
       assert(Array.isArray(w3) && w3.length === 4, "Z-axis win not detected");
 
-      // No false positives
       board = makeEmptyBoard();
       board[0][0][0] = P1;
       board[1][1][0] = P1;
@@ -1508,7 +1631,6 @@
       const w4 = getWinningLineFrom(3,3,2,P1);
       assert(w4 === null, "False positive win detected");
 
-      // AI immediate win test
       board = makeEmptyBoard();
       board[0][0][0] = P2;
       board[1][0][0] = P2;
@@ -1522,7 +1644,6 @@
 
     runSelfTests();
 
-    // Set initial status + frame
     currentPlayer = chooseStartingPlayer();
     lastStartingPlayer = currentPlayer;
     updateStatusForPlayer(currentPlayer);
