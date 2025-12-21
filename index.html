@@ -163,16 +163,8 @@
       font-size: 13px;
     }
 
-    .row .hint {
-      grid-column: 2;
-      opacity: 0.75;
-      font-size: 12px;
-      margin-top: -6px;
-    }
-
     @media (max-width: 520px) {
       .row { grid-template-columns: 1fr; }
-      .row .hint { grid-column: 1; }
     }
 
     #canvasWrap {
@@ -255,54 +247,7 @@
     }
     #score .lbl { opacity: 0.8; font-weight: 800; margin-right: 8px; }
 
-    /* Mobile layout: stack score + current player; use a compact menu in the top-right */
-    @media (max-width: 520px) {
-      #ui { top: 10px; left: 10px; right: 10px; }
-
-      #left {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 8px;
-        min-width: 0;
-      }
-
-      /* Top-right menu */
-      #right {
-        position: fixed;
-        right: 12px;
-        top: 12px;
-        bottom: auto;
-        left: auto;
-        flex-direction: row;
-        align-items: center;
-        gap: 10px;
-        pointer-events: none;
-      }
-      #right > * { pointer-events: auto; }
-
-      /* Hide individual buttons on mobile; show dropdown instead */
-      #undoBtn, #resetBtn, #helpBtn, #settingsBtn { display: none !important; }
-      #mobileMenuWrap { display: block; }
-
-      /* Make pills slightly more compact */
-      .pill { padding: 9px 12px; font-size: 13px; }
-
-      /* Prevent score cropping on narrow screens */
-      #score { max-width: calc(100vw - 24px); }
-      #scoreText {
-        display: inline-block;
-        max-width: 100%;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        vertical-align: bottom;
-      }
-    }
-
-    /* Desktop: hide mobile menu wrapper */
-@media (min-width: 521px) {
-  #mobileMenuWrap { display: none; }
-}
-</style>
+  </style>
 
   <script type="importmap">
   {
@@ -325,21 +270,10 @@
       <button class="pill" id="resetBtn">Reset</button>
       <button class="pill icon" id="helpBtn" title="Rules" aria-label="Rules">?</button>
       <button class="pill icon" id="settingsBtn" title="Options" aria-label="Options">⚙</button>
-
-      <!-- Mobile-only compact menu (top-right) -->
-      <div id="mobileMenuWrap" aria-label="Menu">
-        <select class="pill" id="mobileMenu">
-          <option value="" selected>Menu ▾</option>
-          <option value="undo" id="mobileUndoOpt">Undo Last Move</option>
-          <option value="reset">Reset Match</option>
-          <option value="options">Match Options</option>
-          <option value="help">Help</option>
-        </select>
-      </div>
     </div>
   </div>
 
-  <!-- Help overlay (welcome / rules). Non-blocking so the user can still rotate/zoom behind it. -->
+  <!-- Welcome / Rules overlay (non-blocking) -->
   <div class="overlay" id="helpOverlay" aria-hidden="true">
     <div class="card" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
       <h1 class="cardTitle" id="helpTitle">Welcome to CUBE-4</h1>
@@ -347,11 +281,14 @@
         <p><b>Goal:</b> be the first to make a line of <b>four</b> of your pieces in the 4×4×4 cube — in <b>any direction</b> (across rows, columns, verticals, or diagonals through space).</p>
         <ul>
           <li><b>Rotate:</b> click-and-drag</li>
-          <li><b>Zoom:</b> scroll wheel / trackpad (pinch on mobile)</li>
-          <li><b>Place:</b> tap/click once to select a level, then tap/click a spot to place</li>
+          <li><b>Zoom:</b> scroll wheel / pinch</li>
+          <li><b>Select a level:</b> click any marker (first click)</li>
+          <li><b>Place:</b> click a marker on the selected level (second click)</li>
+          <li><b>Deselect:</b> click outside the cube (desktop also supports <b>Esc</b>)</li>
+          <li><b>Undo:</b> undo the <b>last</b> move only</li>
           <li><b>Win:</b> winning 4 are outlined in yellow</li>
         </ul>
-        <p class="tiny">Tip: Selecting a level focuses that slice of the cube.</p>
+        <p class="tiny">Tip: Level selection focuses the cube layer to make placements easier.</p>
       </div>
       <div class="actions">
         <button class="pill" id="helpPrimaryBtn">Start playing</button>
@@ -373,16 +310,18 @@
         </div>
 
         <div class="row" id="difficultyRow" style="display:none;">
-          <label for="difficultySel">Computer Difficulty</label>
+          <label for="difficultySel">Computer Level</label>
           <select class="pill" id="difficultySel">
-            <option value="easy" selected>Easy</option>
-            <option value="medium">Medium</option>
-            <option value="expert">Expert</option>
+            <option value="1" selected>Level 1</option>
+            <option value="2">Level 2</option>
+            <option value="3">Level 3</option>
+            <option value="4">Level 4</option>
+            <option value="5">Level 5</option>
           </select>
         </div>
 
         <div class="row">
-          <label for="firstMoveSel">First to Move</label>
+          <label for="firstMoveSel">First Move</label>
           <select class="pill" id="firstMoveSel">
             <option value="red">Red</option>
             <option value="blue">Blue</option>
@@ -402,7 +341,7 @@
         </div>
 
         <p class="tiny" style="margin-top:6px; opacity:0.78;">
-          Changing <b>Players</b> or <b>Computer Difficulty</b> restarts the game and wipes the scoreboard.
+          Changing <b>Players</b> or <b>Computer Level</b> restarts the game and wipes the scoreboard.
         </p>
       </div>
       <div class="actions">
@@ -411,24 +350,21 @@
     </div>
   </div>
 
-  <!-- Confirm reset overlay -->
-  <div class="overlay" id="confirmOverlay" aria-hidden="true">
-    <div class="card" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" style="width:min(520px, calc(100vw - 44px));">
-      <h1 class="cardTitle" id="confirmTitle">Reset match?</h1>
-      <div class="settingsBody">
-        <p>Are you sure you want to reset the match? This will wipe the scoreboard.</p>
-      </div>
-      <div class="actions">
-        <button class="pill" id="confirmNoBtn">No</button>
-        <button class="pill" id="confirmYesBtn">Yes</button>
-      </div>
-    </div>
-  </div>
-
   <div id="overlay">
     <div id="overlayCard">
       <h1 id="overlayTitle">RED WINS!</h1>
       <p id="overlaySub">Rotate and zoom to inspect the winning line.</p>
+
+      <div id="difficultyPrompt" style="display:none; margin-top: 10px;">
+        <div style="font-weight:900; letter-spacing:0.3px; margin-bottom:10px;">Adjust difficulty for the next match?</div>
+        <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;">
+          <button class="pill small" id="diffDownBtn">Easier</button>
+          <button class="pill small" id="diffKeepBtn">Keep</button>
+          <button class="pill small" id="diffUpBtn">Harder</button>
+        </div>
+        <div style="opacity:0.75; font-size:12px; margin-top:8px;">Current CPU level: <span id="cpuLevelText">1</span></div>
+      </div>
+
       <button id="playAgainBtn">Play again</button>
     </div>
   </div>
@@ -445,7 +381,6 @@
     const SIZE = 4;
     const EMPTY = 0, P1 = 1, P2 = 2;
 
-    // Storage keys (bump version when changing defaults)
     const LS_KEY = "cube4_settings_v3";
     const LS_SCORE_KEY = "cube4_score_v3";
 
@@ -489,6 +424,13 @@
       return lines;
     })();
 
+    // --- Helpers ---
+    function clampInt(n, lo, hi) {
+      n = Math.trunc(n);
+      if (!Number.isFinite(n)) return lo;
+      return Math.max(lo, Math.min(hi, n));
+    }
+
     // --- State ---
     let board = makeEmptyBoard();
     let currentPlayer = P1;
@@ -503,15 +445,15 @@
     let lastWinner = null; // P1/P2
     let lastStartingPlayer = null; // P1/P2
 
-    // Settings
-    let playersCount = 1;
-    let aiDifficulty = "easy";
+    // Settings (NEW DEFAULTS)
+    let playersCount = 1;           // One Player
+    let aiLevel = 1;                // Level 1
     let firstMovePolicy = "alternate";
     let matchStyle = "bo3";
 
     const aiPlayer = P2; // AI is always Blue
 
-    // Two-click selection state
+    // Two-click selection state (applies to desktop + mobile)
     let selectedLevelZ = null;
 
     // --- UI elements ---
@@ -527,10 +469,6 @@
     const helpBtn = document.getElementById("helpBtn");
     const settingsBtn = document.getElementById("settingsBtn");
 
-    // Mobile menu
-    const mobileMenu = document.getElementById("mobileMenu");
-    const mobileUndoOpt = document.getElementById("mobileUndoOpt");
-
     const helpOverlay = document.getElementById("helpOverlay");
     const helpPrimaryBtn = document.getElementById("helpPrimaryBtn");
 
@@ -542,15 +480,16 @@
     const matchSel = document.getElementById("matchSel");
     const closeSettingsBtn = document.getElementById("closeSettingsBtn");
 
-    // Confirm reset
-    const confirmOverlay = document.getElementById("confirmOverlay");
-    const confirmYesBtn = document.getElementById("confirmYesBtn");
-    const confirmNoBtn = document.getElementById("confirmNoBtn");
-
     const overlay = document.getElementById("overlay");
     const overlayTitle = document.getElementById("overlayTitle");
     const overlaySub = document.getElementById("overlaySub");
     const playAgainBtn = document.getElementById("playAgainBtn");
+
+    const difficultyPrompt = document.getElementById("difficultyPrompt");
+    const cpuLevelText = document.getElementById("cpuLevelText");
+    const diffDownBtn = document.getElementById("diffDownBtn");
+    const diffKeepBtn = document.getElementById("diffKeepBtn");
+    const diffUpBtn = document.getElementById("diffUpBtn");
 
     // --- Persistence ---
     function loadPersisted() {
@@ -558,9 +497,9 @@
         const s = JSON.parse(localStorage.getItem(LS_KEY) || "null");
         if (s && typeof s === "object") {
           if (s.playersCount === 1 || s.playersCount === 2) playersCount = s.playersCount;
-          if (s.aiDifficulty === "easy" || s.aiDifficulty === "medium" || s.aiDifficulty === "expert") aiDifficulty = s.aiDifficulty;
-          if (["red","blue","random","winner","alternate"].includes(s.firstMovePolicy)) firstMovePolicy = s.firstMovePolicy;
-          if (["unbounded","bo3","bo5"].includes(s.matchStyle)) matchStyle = s.matchStyle;
+          if (Number.isFinite(Number(s.aiLevel))) aiLevel = clampInt(Number(s.aiLevel), 1, 5);
+          if (s.firstMovePolicy) firstMovePolicy = s.firstMovePolicy;
+          if (s.matchStyle) matchStyle = s.matchStyle;
           if (s.lastWinner === P1 || s.lastWinner === P2) lastWinner = s.lastWinner;
           if (s.lastStartingPlayer === P1 || s.lastStartingPlayer === P2) lastStartingPlayer = s.lastStartingPlayer;
         }
@@ -579,7 +518,7 @@
       try {
         localStorage.setItem(LS_KEY, JSON.stringify({
           playersCount,
-          aiDifficulty,
+          aiLevel,
           firstMovePolicy,
           matchStyle,
           lastWinner,
@@ -608,24 +547,17 @@
     let helpMode = "welcome"; // welcome|rules
     let hasCompletedWelcome = false;
 
-    function setHelpCopy(mode) {
-      const titleEl = document.getElementById("helpTitle");
-      if (!titleEl) return;
-
-      if (mode === "welcome") {
-        titleEl.textContent = "Welcome to CUBE-4";
-        helpPrimaryBtn.textContent = "Start playing";
-      } else {
-        titleEl.textContent = "How to play";
-        helpPrimaryBtn.textContent = "Continue";
-      }
-    }
-
     function showHelp(mode) {
       helpMode = mode;
-      setHelpCopy(mode);
       helpOverlay.style.display = "flex";
       helpOverlay.setAttribute("aria-hidden", "false");
+
+      const titleEl = document.getElementById("helpTitle");
+      if (titleEl) {
+        titleEl.textContent = (mode === "welcome") ? "Welcome to CUBE-4" : "How to play";
+      }
+
+      helpPrimaryBtn.textContent = (mode === "welcome") ? "Start playing" : "Continue";
       helpPrimaryBtn?.focus?.();
     }
 
@@ -648,37 +580,16 @@
       settingsOverlay.setAttribute("aria-hidden", "true");
     }
 
-    function showConfirmReset() {
-      confirmOverlay.style.display = "flex";
-      confirmOverlay.setAttribute("aria-hidden", "false");
-      confirmNoBtn?.focus?.();
-    }
-
-    function hideConfirmReset() {
-      confirmOverlay.style.display = "none";
-      confirmOverlay.setAttribute("aria-hidden", "true");
-    }
-
     function syncSettingsUI() {
       playersSel.value = String(playersCount);
-      difficultySel.value = aiDifficulty;
+      difficultySel.value = String(aiLevel);
       firstMoveSel.value = firstMovePolicy;
       matchSel.value = matchStyle;
       difficultyRow.style.display = (playersCount === 1) ? "grid" : "none";
-      updateUndoVisibility();
-      updateMobileMenuUndoVisibility();
     }
 
-    function updateUndoVisibility() {
-      const show = (playersCount === 2);
-      undoBtn.style.display = show ? "inline-flex" : "none";
-      if (!show) undoBtn.disabled = true;
-    }
-
-    function updateMobileMenuUndoVisibility() {
-      if (!mobileUndoOpt) return;
-      const show = (playersCount === 2);
-      mobileUndoOpt.style.display = show ? "block" : "none";
+    function isOnePlayerMode() {
+      return playersCount === 1;
     }
 
     function isAITurn() {
@@ -750,12 +661,9 @@
     const frameSize = SIZE - 1;
     const box = new THREE.BoxGeometry(frameSize + 1.4, frameSize + 1.4, frameSize + 1.4);
     const edges = new THREE.EdgesGeometry(box);
-    const frameMat = new THREE.LineBasicMaterial({
-      color: 0x6f7a92,
-      transparent: true,
-      opacity: 0.65,
-      linewidth: 2
-    });
+
+    // Slightly thicker outline
+    const frameMat = new THREE.LineBasicMaterial({ color: 0x6f7a92, transparent: true, opacity: 0.42, linewidth: 2 });
     const frame = new THREE.LineSegments(edges, frameMat);
     scene.add(frame);
 
@@ -779,8 +687,7 @@
       const fov = THREE.MathUtils.degToRad(camera.fov);
       const aspect = camera.aspect || 1;
 
-      // baseMargin 4 mobile / 3 desktop (your tweak)
-      const baseMargin = matchMedia('(pointer: coarse)').matches ? 1.6 : 3;
+      const baseMargin = matchMedia('(pointer: coarse)').matches ? 1 : 3;
       const portraitBoost = aspect < 1 ? Math.min(1 / aspect, 2.2) : 1;
       const distance = (maxDim * 0.5) / Math.tan(fov * 0.5) * baseMargin * portraitBoost;
 
@@ -794,7 +701,7 @@
       controls.update();
 
       controls.minDistance = distance * 0.20; // allow closer zoom on mobile too
-      controls.maxDistance = distance * 6.0;
+      controls.maxDistance = distance * 4.0;
     }
 
     fitCameraToCube();
@@ -933,7 +840,7 @@
       winOutlines.length = 0;
     }
 
-    // Returns winning 4 coordinates if win, otherwise null
+    // Returns winning 4 coordinates if win, otherwise null (fast, from last move)
     function getWinningLineFrom(x,y,z, player) {
       for (const [dx,dy,dz] of directions) {
         let sx = x, sy = y, sz = z;
@@ -988,7 +895,6 @@
       const weights = { 1: 1, 2: 6, 3: 28 };
       let score = 0;
 
-      // Center preference
       const center = 1.5;
       for (let x=0; x<SIZE; x++)
         for (let y=0; y<SIZE; y++)
@@ -1052,94 +958,102 @@
     }
 
     function chooseAIMove() {
-      const winNow = tryImmediate(aiPlayer);
-      if (winNow) return winNow;
-      const block = tryImmediate(P1);
-      if (block) return block;
-
       const moves = legalMoves();
       if (moves.length === 0) return null;
 
-      if (aiDifficulty === "easy") {
-        if (Math.random() < 0.35) return moves[(Math.random()*moves.length)|0];
-        let best = null;
-        let bestScore = -Infinity;
-        const sample = moves.slice().sort(()=>Math.random()-0.5).slice(0, Math.min(12, moves.length));
-        for (const [x,y,z] of sample) {
-          board[x][y][z] = aiPlayer;
-          const s = heuristicScore(aiPlayer);
-          board[x][y][z] = EMPTY;
-          if (s > bestScore) { bestScore = s; best = [x,y,z]; }
-        }
-        return best || moves[(Math.random()*moves.length)|0];
+      // Make the AI feel more "human": it sometimes misses blocks/wins, especially as the board gets busy.
+      const filled = 64 - moves.length;
+      const busy = Math.min(1, filled / 40); // 0..1
+
+      const cfgByLevel = {
+        1: { pSeeWin: 0.55, pSeeBlock: 0.35, sample: 10, useMinimax: false, depth: 0, noise: 10.0 },
+        2: { pSeeWin: 0.75, pSeeBlock: 0.55, sample: 14, useMinimax: false, depth: 0, noise: 7.0 },
+        3: { pSeeWin: 0.90, pSeeBlock: 0.75, sample: 18, useMinimax: false, depth: 0, noise: 5.0 },
+        4: { pSeeWin: 0.95, pSeeBlock: 0.85, sample: 22, useMinimax: true,  depth: 2, noise: 3.5 },
+        5: { pSeeWin: 0.97, pSeeBlock: 0.90, sample: 26, useMinimax: true,  depth: 3, noise: 2.8 },
+      };
+
+      const cfg = cfgByLevel[aiLevel] || cfgByLevel[1];
+      const pWin = Math.max(0.20, cfg.pSeeWin - busy * 0.18);
+      const pBlock = Math.max(0.18, cfg.pSeeBlock - busy * 0.22);
+
+      if (Math.random() < pWin) {
+        const winNow = tryImmediate(aiPlayer);
+        if (winNow) return winNow;
       }
 
-      if (aiDifficulty === "medium") {
-        let best = null;
-        let bestScore = -Infinity;
-        for (const [x,y,z] of moves) {
-          board[x][y][z] = aiPlayer;
-          const oppWin = tryImmediate(P1);
-          let s = heuristicScore(aiPlayer);
-          if (oppWin) s -= 5000;
-          board[x][y][z] = EMPTY;
-          if (s > bestScore) { bestScore = s; best = [x,y,z]; }
-        }
-        return best;
+      if (Math.random() < pBlock) {
+        const block = tryImmediate(P1);
+        if (block) return block;
       }
 
-      // Expert
-      const depth = 3;
-      let bestMoves = [];
+      const shuffled = moves.slice().sort(() => Math.random() - 0.5);
+      const sample = shuffled.slice(0, Math.min(cfg.sample, shuffled.length));
+
+      let best = null;
       let bestScore = -Infinity;
 
-      for (const [x,y,z] of moves) {
+      for (const [x,y,z] of sample) {
         board[x][y][z] = aiPlayer;
-        const s = -negamax(depth-1, -Infinity, Infinity, P1, aiPlayer);
+
+        let s;
+        if (cfg.useMinimax && cfg.depth > 0) {
+          s = -negamax(cfg.depth - 1, -Infinity, Infinity, P1, aiPlayer);
+        } else {
+          s = heuristicScore(aiPlayer);
+        }
+
+        s += (Math.random() - 0.5) * cfg.noise;
+
         board[x][y][z] = EMPTY;
 
         if (s > bestScore) {
           bestScore = s;
-          bestMoves = [[x,y,z]];
-        } else if (s === bestScore) {
-          bestMoves.push([x,y,z]);
+          best = [x,y,z];
         }
       }
 
-      if (bestMoves.length === 0) return moves[(Math.random()*moves.length)|0];
-      if (Math.random() < 0.10) return bestMoves[(Math.random()*bestMoves.length)|0];
-      return bestMoves[0];
+      return best || moves[(Math.random() * moves.length) | 0];
     }
+
+    let aiThinking = false;
 
     function maybeAIMove() {
       if (playersCount !== 1) return;
       if (gameOver) return;
       if (currentPlayer !== aiPlayer) return;
 
+      aiThinking = true;
+
       const thinkDelayMs = 1000 + Math.floor(Math.random() * 2000);
 
       setTimeout(() => {
-        if (playersCount !== 1 || gameOver || currentPlayer !== aiPlayer) return;
+        if (playersCount !== 1 || gameOver || currentPlayer !== aiPlayer) {
+          aiThinking = false;
+          return;
+        }
 
         const mv = chooseAIMove();
-        if (!mv) return;
+        if (!mv) { aiThinking = false; return; }
         const [x,y,z] = mv;
-        if (board[x][y][z] !== EMPTY) return;
+        if (board[x][y][z] !== EMPTY) { aiThinking = false; return; }
 
         const player = aiPlayer;
         placePiece(x,y,z, player);
         lastMove = { x, y, z, player };
-        undoBtn.disabled = false;
+        undoBtn.disabled = true;
         clearSelection();
 
         const winning4 = getWinningLineFrom(x,y,z, player);
         if (winning4) {
+          aiThinking = false;
           finishWin(player, winning4);
           return;
         }
 
         if (boardIsFull()) {
           gameOver = true;
+          aiThinking = false;
           showOverlay("draw");
           return;
         }
@@ -1147,6 +1061,8 @@
         currentPlayer = P1;
         updateStatusForPlayer(currentPlayer);
         updateFrameForCurrentPlayer();
+
+        aiThinking = false;
       }, thinkDelayMs);
     }
 
@@ -1158,30 +1074,44 @@
     }
 
     function updateStatusForPlayer(player) {
-      statusEl.textContent = `Current Player: ${playerName(player)}`;
+      if (playersCount === 1) {
+        statusEl.textContent = (player === P1) ? "Player 1: Red" : "CPU: Blue";
+      } else {
+        statusEl.textContent = `Current Player: ${playerName(player)}`;
+      }
       setPillAccentForPlayer(statusPill, player, 0.30, 0.55);
     }
 
     function showOverlay(kind, player) {
       overlay.style.display = "flex";
 
+      const matchOver = (kind === "win") ? isMatchOver() : false;
+      const showDiffPrompt = isOnePlayerMode() && matchOver;
+
+      if (difficultyPrompt) difficultyPrompt.style.display = showDiffPrompt ? "block" : "none";
+      if (cpuLevelText) cpuLevelText.textContent = String(aiLevel);
+
+      playAgainBtn.style.display = showDiffPrompt ? "none" : "inline-block";
+
       if (kind === "win") {
         overlayTitle.textContent = `${playerName(player).toUpperCase()} WINS!`;
         overlayTitle.style.color = player === P1 ? "#ff4b4b" : "#4aa0ff";
 
         const scoreLine = `Match score: Red ${winsP1} – ${winsP2} Blue`;
-        const matchOver = isMatchOver();
         if (matchOver) {
-          overlaySub.textContent = `${scoreLine}\nMATCH OVER — ${playerName(player)} wins ${matchStyleLabel()}.`;
+          overlaySub.textContent = `${scoreLine}
+MATCH OVER — ${playerName(player)} wins ${matchStyleLabel()}.`;
         } else {
-          overlaySub.textContent = `${scoreLine}\nRotate and zoom to inspect the winning line.`;
+          overlaySub.textContent = `${scoreLine}
+Rotate and zoom to inspect the winning line.`;
         }
 
         playAgainBtn.textContent = matchOver ? "New match" : "Next game";
       } else {
         overlayTitle.textContent = "DRAW!";
         overlayTitle.style.color = "#ffffff";
-        overlaySub.textContent = `Match score: Red ${winsP1} – ${winsP2} Blue\nNo more moves. Rotate/zoom to inspect the final board.`;
+        overlaySub.textContent = `Match score: Red ${winsP1} – ${winsP2} Blue
+No more moves. Rotate/zoom to inspect the final board.`;
         playAgainBtn.textContent = "Next game";
       }
     }
@@ -1262,7 +1192,6 @@
 
       lastMove = null;
       undoBtn.disabled = true;
-
       clearSelection();
       hideOverlay();
 
@@ -1271,6 +1200,9 @@
 
       updateStatusForPlayer(currentPlayer);
       updateFrameForCurrentPlayer();
+
+      // Undo only for 2P mode
+      undoBtn.style.display = (playersCount === 2) ? "inline-block" : "none";
 
       savePersisted();
 
@@ -1310,9 +1242,7 @@
     }
 
     undoBtn.addEventListener("click", undoMove);
-    resetBtn.addEventListener("click", () => {
-      resetMatch();
-    });
+    resetBtn.addEventListener("click", resetMatch);
 
     playAgainBtn.addEventListener("click", () => {
       if (isMatchOver()) {
@@ -1325,30 +1255,24 @@
     // --- Settings apply ---
     function applySettingsFromUI({ isInitial=false } = {}) {
       const prevPlayersCount = playersCount;
-      const prevDifficulty = aiDifficulty;
+      const prevAiLevel = aiLevel;
 
       playersCount = Number(playersSel.value) === 1 ? 1 : 2;
-      aiDifficulty = difficultySel.value;
+      aiLevel = clampInt(Number(difficultySel.value), 1, 5);
       firstMovePolicy = firstMoveSel.value;
       matchStyle = matchSel.value;
 
       const playersChanged = (playersCount !== prevPlayersCount);
-      const difficultyChanged = (playersCount === 1) && (aiDifficulty !== prevDifficulty);
+      const levelChanged = (playersCount === 1) && (aiLevel !== prevAiLevel);
 
       difficultyRow.style.display = (playersCount === 1) ? "grid" : "none";
-      updateUndoVisibility();
-      updateMobileMenuUndoVisibility();
 
-      if (playersChanged || difficultyChanged) {
-        wipeScoreboard();
-      }
+      if (playersChanged || levelChanged) wipeScoreboard();
 
       savePersisted();
       resetBoardOnly();
 
-      if (isInitial) {
-        hasCompletedWelcome = true;
-      }
+      if (isInitial) hasCompletedWelcome = true;
     }
 
     playersSel.addEventListener("change", () => {
@@ -1365,41 +1289,7 @@
       showSettings();
     });
 
-    // Mobile dropdown menu actions
-    mobileMenu?.addEventListener("change", () => {
-      const v = mobileMenu.value;
-      mobileMenu.value = "";
-
-      if (v === "undo") {
-        if (playersCount === 2) undoMove();
-        return;
-      }
-      if (v === "reset") {
-        showConfirmReset();
-        return;
-      }
-      if (v === "options") {
-        showSettings();
-        return;
-      }
-      if (v === "help") {
-        showHelp("rules");
-        return;
-      }
-    });
-
-    // Confirm reset handlers
-    confirmNoBtn?.addEventListener("click", hideConfirmReset);
-    confirmYesBtn?.addEventListener("click", () => {
-      hideConfirmReset();
-      resetMatch();
-    });
-
-    confirmOverlay?.addEventListener("pointerdown", (ev) => {
-      if (ev.target === confirmOverlay) hideConfirmReset();
-    });
-
-    helpPrimaryBtn?.addEventListener("click", () => {
+    helpPrimaryBtn.addEventListener("click", () => {
       if (helpMode === "welcome") {
         hideHelp();
         showSettings();
@@ -1414,33 +1304,39 @@
       if (!hasCompletedWelcome) hasCompletedWelcome = true;
     });
 
-    // NOTE: welcome has no esc-to-close.
     window.addEventListener("keydown", (ev) => {
       if (ev.key !== "Escape") return;
 
-      // Esc closes rules (not welcome)
       if (helpOverlay.style.display === "flex" && helpMode === "rules") {
         hideHelp();
         return;
       }
 
-      // Desktop: Esc deselects.
-      // Mobile: deselect only by tapping outside cube.
       if (!isCoarsePointer && settingsOverlay.style.display !== "flex" && helpOverlay.style.display !== "flex") {
         clearSelection();
       }
     });
 
-    // Clicking outside the settings card closes it
     settingsOverlay.addEventListener("pointerdown", (ev) => {
       if (ev.target === settingsOverlay) hideSettings();
     });
+
+    // Difficulty prompt buttons (shown on 1P match end)
+    function applyDifficultyDelta(delta) {
+      aiLevel = clampInt(aiLevel + delta, 1, 5);
+      difficultySel.value = String(aiLevel);
+      savePersisted();
+      resetMatch();
+    }
+
+    diffDownBtn?.addEventListener?.("click", () => applyDifficultyDelta(-1));
+    diffUpBtn?.addEventListener?.("click", () => applyDifficultyDelta(+1));
+    diffKeepBtn?.addEventListener?.("click", () => applyDifficultyDelta(0));
 
     // --- Pointer handling: two-click selection on ALL devices ---
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
-    // Safe click gating + don't interfere with pinch
     let downPos = null;
     let downTime = 0;
     const CLICK_MOVE_TOL = matchMedia('(pointer: coarse)').matches ? 14 : 6;
@@ -1451,7 +1347,6 @@
 
     renderer.domElement.addEventListener("pointerdown", (ev) => {
       userHasMovedCamera = true;
-
       if (settingsOverlay.style.display === "flex") return;
 
       activePointers.add(ev.pointerId);
@@ -1475,7 +1370,6 @@
 
     renderer.domElement.addEventListener("pointerup", (ev) => {
       activePointers.delete(ev.pointerId);
-
       if (settingsOverlay.style.display === "flex") return;
 
       if (hadMultiTouch) {
@@ -1501,27 +1395,21 @@
       const hits = raycaster.intersectObjects(cellGroup.children, false);
       const hit = hits.find(h => h.object.visible);
 
-      // Click outside cube => deselect
       if (!hit) {
         clearSelection();
         return;
       }
 
-      // If it's AI's turn, ignore player interaction
-      if (isAITurn()) return;
+      if (isAITurn() || aiThinking) return;
 
       const { x, y, z } = hit.object.userData;
 
-      // First click: select a level
       if (selectedLevelZ === null) {
         selectedLevelZ = z;
         applyLevelFocus({ x, y, z });
         return;
       }
 
-      // If a level is already selected:
-      // - Desktop: clicking another level switches selection
-      // - Mobile: ignore taps on other levels (deselect by tapping outside cube)
       if (selectedLevelZ !== z) {
         if (!isCoarsePointer) {
           selectedLevelZ = z;
@@ -1530,14 +1418,20 @@
         return;
       }
 
-      // Second click on same level: place
       if (gameOver) return;
       if (board[x][y][z] !== EMPTY) return;
 
       const player = currentPlayer;
       placePiece(x,y,z, player);
       lastMove = { x, y, z, player };
-      undoBtn.disabled = false;
+
+      if (playersCount === 2) {
+        undoBtn.style.display = "inline-block";
+        undoBtn.disabled = false;
+      } else {
+        undoBtn.style.display = "none";
+        undoBtn.disabled = true;
+      }
 
       clearSelection();
 
@@ -1601,13 +1495,11 @@
     loadPersisted();
     updateScoreUI();
     syncSettingsUI();
-    updateUndoVisibility();
-    updateMobileMenuUndoVisibility();
+    undoBtn.style.display = (playersCount === 2) ? "inline-block" : "none";
 
-    // Welcome on load (no close X, no esc-to-close)
     showHelp("welcome");
 
-    // --- Lightweight self-tests ---
+    // --- Lightweight self-tests (run once, no UI impact) ---
     function assert(cond, msg) {
       if (!cond) throw new Error(`Self-test failed: ${msg}`);
     }
@@ -1636,15 +1528,21 @@
       const w4 = getWinningLineFrom(3,3,2,P1);
       assert(w4 === null, "False positive win detected");
 
+      // AI immediate win test
       board = makeEmptyBoard();
       board[0][0][0] = P2;
       board[1][0][0] = P2;
       board[2][0][0] = P2;
-      aiDifficulty = "medium";
       const mv = tryImmediate(P2);
       assert(Array.isArray(mv) && mv[0] === 3 && mv[1] === 0 && mv[2] === 0, "AI immediate win not found");
 
+      // Level bounds
+      aiLevel = 999;
+      aiLevel = clampInt(aiLevel, 1, 5);
+      assert(aiLevel === 5, "clampInt upper bound failed");
+
       board = makeEmptyBoard();
+      aiLevel = 1;
     }
 
     runSelfTests();
