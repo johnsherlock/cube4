@@ -125,7 +125,7 @@
     .helpBody p, .settingsBody p { margin: 10px 0; opacity: 0.95; }
     .helpBody ul { margin: 10px 0 8px 18px; padding: 0; opacity: 0.92; }
     .helpBody li { margin: 6px 0; }
-    .helpBody .tiny { opacity: 0.75; font-size: 13px; }
+    .tiny { opacity: 0.75; font-size: 13px; }
 
     .actions {
       margin-top: 14px;
@@ -247,6 +247,21 @@
     }
     #score .lbl { opacity: 0.8; font-weight: 800; margin-right: 8px; }
 
+    /* Mobile layout: stack status + score, replace buttons with a single dropdown */
+    #mobileMenu { display: none; }
+
+    @media (max-width: 520px) {
+      #ui { align-items: flex-start; }
+      #left {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 10px;
+      }
+      #right { justify-content: flex-end; }
+      #undoBtn, #resetBtn, #helpBtn, #settingsBtn { display: none !important; }
+      #mobileMenu { display: inline-flex; min-width: 140px; }
+    }
+
   </style>
 
   <script type="importmap">
@@ -266,29 +281,36 @@
       <div class="pill" id="score"><span class="lbl">SCORE</span><span id="scoreText">Red 0 – 0 Blue</span></div>
     </div>
     <div id="right">
+      <!-- Desktop controls -->
       <button class="pill" id="undoBtn" disabled>Undo</button>
       <button class="pill" id="resetBtn">Reset</button>
       <button class="pill icon" id="helpBtn" title="Rules" aria-label="Rules">?</button>
       <button class="pill icon" id="settingsBtn" title="Options" aria-label="Options">⚙</button>
+
+      <!-- Mobile menu (shown via CSS media query) -->
+      <select class="pill" id="mobileMenu" aria-label="Menu">
+        <option value="" selected>Menu ▾</option>
+        <option value="undo">Undo last move</option>
+        <option value="reset">Reset match</option>
+        <option value="options">Match options</option>
+        <option value="help">Help</option>
+      </select>
     </div>
   </div>
 
-  <!-- Welcome / Rules overlay (non-blocking) -->
+  <!-- Help / Welcome overlay (non-blocking; no X; no escape for welcome) -->
   <div class="overlay" id="helpOverlay" aria-hidden="true">
     <div class="card" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
       <h1 class="cardTitle" id="helpTitle">Welcome to CUBE-4</h1>
-      <div class="helpBody">
+      <div class="helpBody" id="helpBody">
         <p><b>Goal:</b> be the first to make a line of <b>four</b> of your pieces in the 4×4×4 cube — in <b>any direction</b> (across rows, columns, verticals, or diagonals through space).</p>
         <ul>
-          <li><b>Rotate:</b> click-and-drag</li>
-          <li><b>Zoom:</b> scroll wheel / pinch</li>
-          <li><b>Select a level:</b> click any marker (first click)</li>
-          <li><b>Place:</b> click a marker on the selected level (second click)</li>
-          <li><b>Deselect:</b> click outside the cube (desktop also supports <b>Esc</b>)</li>
-          <li><b>Undo:</b> undo the <b>last</b> move only</li>
+          <li><b>Rotate:</b> click-and-drag (one finger on mobile)</li>
+          <li><b>Zoom:</b> scroll wheel / trackpad / pinch</li>
+          <li><b>Place:</b> tap a marker to select a level, then tap a spot on that level</li>
           <li><b>Win:</b> winning 4 are outlined in yellow</li>
         </ul>
-        <p class="tiny">Tip: Level selection focuses the cube layer to make placements easier.</p>
+        <p class="tiny">Tip: Selecting focuses a single <b>level</b> of the cube to make placements easier.</p>
       </div>
       <div class="actions">
         <button class="pill" id="helpPrimaryBtn">Start playing</button>
@@ -350,6 +372,20 @@
     </div>
   </div>
 
+  <!-- Reset confirmation (mobile menu) -->
+  <div class="overlay" id="confirmOverlay" aria-hidden="true">
+    <div class="card" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+      <h1 class="cardTitle" id="confirmTitle">Reset match?</h1>
+      <div class="settingsBody">
+        <p>This will clear the board and wipe the scoreboard for the current match.</p>
+      </div>
+      <div class="actions">
+        <button class="pill" id="confirmNoBtn">No</button>
+        <button class="pill" id="confirmYesBtn">Yes</button>
+      </div>
+    </div>
+  </div>
+
   <div id="overlay">
     <div id="overlayCard">
       <h1 id="overlayTitle">RED WINS!</h1>
@@ -373,6 +409,11 @@
 
   <!-- CUBE4 logo -->
   <div id="logo">CUBE<span>4</span></div>
+
+  <!-- Difficulty indicator -->
+  <div id="difficultyIndicator" class="pill small" style="position:fixed; right:14px; bottom:14px; z-index:5; pointer-events:none; opacity:0.85;">
+    Difficulty: <span id="difficultyValue">1</span>
+  </div>
 
   <script type="module">
     import * as THREE from "three";
@@ -445,7 +486,7 @@
     let lastWinner = null; // P1/P2
     let lastStartingPlayer = null; // P1/P2
 
-    // Settings (NEW DEFAULTS)
+    // Settings (DEFAULTS)
     let playersCount = 1;           // One Player
     let aiLevel = 1;                // Level 1
     let firstMovePolicy = "alternate";
@@ -468,6 +509,7 @@
 
     const helpBtn = document.getElementById("helpBtn");
     const settingsBtn = document.getElementById("settingsBtn");
+    const mobileMenu = document.getElementById("mobileMenu");
 
     const helpOverlay = document.getElementById("helpOverlay");
     const helpPrimaryBtn = document.getElementById("helpPrimaryBtn");
@@ -486,6 +528,11 @@
     const playAgainBtn = document.getElementById("playAgainBtn");
 
     const difficultyPrompt = document.getElementById("difficultyPrompt");
+
+    // Confirm reset overlay
+    const confirmOverlay = document.getElementById("confirmOverlay");
+    const confirmYesBtn = document.getElementById("confirmYesBtn");
+    const confirmNoBtn = document.getElementById("confirmNoBtn");
     const cpuLevelText = document.getElementById("cpuLevelText");
     const diffDownBtn = document.getElementById("diffDownBtn");
     const diffKeepBtn = document.getElementById("diffKeepBtn");
@@ -541,6 +588,8 @@
 
     function updateScoreUI() {
       scoreTextEl.textContent = `Red ${winsP1} – ${winsP2} Blue`;
+      const dv = document.getElementById("difficultyValue");
+      if (dv) dv.textContent = String(aiLevel || '?'); 
     }
 
     // --- Overlay utilities ---
@@ -553,18 +602,29 @@
       helpOverlay.setAttribute("aria-hidden", "false");
 
       const titleEl = document.getElementById("helpTitle");
-      if (titleEl) {
-        titleEl.textContent = (mode === "welcome") ? "Welcome to CUBE-4" : "How to play";
-      }
+      if (titleEl) titleEl.textContent = (mode === "welcome") ? "Welcome to CUBE-4" : "How to play";
 
-      helpPrimaryBtn.textContent = (mode === "welcome") ? "Start playing" : "Continue";
-      helpPrimaryBtn?.focus?.();
+      if (helpPrimaryBtn) {
+        helpPrimaryBtn.textContent = (mode === "welcome") ? "Start playing" : "Continue";
+        helpPrimaryBtn?.focus?.();
+      }
     }
 
     function hideHelp() {
       helpOverlay.style.display = "none";
       helpOverlay.setAttribute("aria-hidden", "true");
       if (!userHasMovedCamera) fitCameraToCube();
+    }
+
+    function showConfirmReset() {
+      confirmOverlay.style.display = "flex";
+      confirmOverlay.setAttribute("aria-hidden", "false");
+      confirmNoBtn?.focus?.();
+    }
+
+    function hideConfirmReset() {
+      confirmOverlay.style.display = "none";
+      confirmOverlay.setAttribute("aria-hidden", "true");
     }
 
     function showSettings() {
@@ -687,7 +747,7 @@
       const fov = THREE.MathUtils.degToRad(camera.fov);
       const aspect = camera.aspect || 1;
 
-      const baseMargin = matchMedia('(pointer: coarse)').matches ? 1 : 3;
+      const baseMargin = matchMedia('(pointer: coarse)').matches ? 1.6 : 3;
       const portraitBoost = aspect < 1 ? Math.min(1 / aspect, 2.2) : 1;
       const distance = (maxDim * 0.5) / Math.tan(fov * 0.5) * baseMargin * portraitBoost;
 
@@ -700,7 +760,7 @@
       controls.target.copy(fitCenter);
       controls.update();
 
-      controls.minDistance = distance * 0.20; // allow closer zoom on mobile too
+      controls.minDistance = distance * 0.20;
       controls.maxDistance = distance * 4.0;
     }
 
@@ -718,7 +778,6 @@
 
     function cellToWorld(x, y, z) {
       const half = (SIZE - 1) / 2;
-      // World axes: X left-right, Y up (levels), Z depth
       return new THREE.Vector3(x - half, z - half, y - half);
     }
 
@@ -840,7 +899,6 @@
       winOutlines.length = 0;
     }
 
-    // Returns winning 4 coordinates if win, otherwise null (fast, from last move)
     function getWinningLineFrom(x,y,z, player) {
       for (const [dx,dy,dz] of directions) {
         let sx = x, sy = y, sz = z;
@@ -961,9 +1019,8 @@
       const moves = legalMoves();
       if (moves.length === 0) return null;
 
-      // Make the AI feel more "human": it sometimes misses blocks/wins, especially as the board gets busy.
       const filled = 64 - moves.length;
-      const busy = Math.min(1, filled / 40); // 0..1
+      const busy = Math.min(1, filled / 40);
 
       const cfgByLevel = {
         1: { pSeeWin: 0.55, pSeeBlock: 0.35, sample: 10, useMinimax: false, depth: 0, noise: 10.0 },
@@ -1024,7 +1081,6 @@
       if (currentPlayer !== aiPlayer) return;
 
       aiThinking = true;
-
       const thinkDelayMs = 1000 + Math.floor(Math.random() * 2000);
 
       setTimeout(() => {
@@ -1099,19 +1155,16 @@
 
         const scoreLine = `Match score: Red ${winsP1} – ${winsP2} Blue`;
         if (matchOver) {
-          overlaySub.textContent = `${scoreLine}
-MATCH OVER — ${playerName(player)} wins ${matchStyleLabel()}.`;
+          overlaySub.textContent = `${scoreLine}\nMATCH OVER — ${playerName(player)} wins ${matchStyleLabel()}.`;
         } else {
-          overlaySub.textContent = `${scoreLine}
-Rotate and zoom to inspect the winning line.`;
+          overlaySub.textContent = `${scoreLine}\nRotate and zoom to inspect the winning line.`;
         }
 
         playAgainBtn.textContent = matchOver ? "New match" : "Next game";
       } else {
         overlayTitle.textContent = "DRAW!";
         overlayTitle.style.color = "#ffffff";
-        overlaySub.textContent = `Match score: Red ${winsP1} – ${winsP2} Blue
-No more moves. Rotate/zoom to inspect the final board.`;
+        overlaySub.textContent = `Match score: Red ${winsP1} – ${winsP2} Blue\nNo more moves. Rotate/zoom to inspect the final board.`;
         playAgainBtn.textContent = "Next game";
       }
     }
@@ -1176,6 +1229,7 @@ No more moves. Rotate/zoom to inspect the final board.`;
     }
 
     function resetBoardOnly() {
+      syncMobileMenuVisibility();
       board = makeEmptyBoard();
       gameOver = false;
 
@@ -1203,6 +1257,8 @@ No more moves. Rotate/zoom to inspect the final board.`;
 
       // Undo only for 2P mode
       undoBtn.style.display = (playersCount === 2) ? "inline-block" : "none";
+
+      syncMobileMenuVisibility();
 
       savePersisted();
 
@@ -1244,6 +1300,16 @@ No more moves. Rotate/zoom to inspect the final board.`;
     undoBtn.addEventListener("click", undoMove);
     resetBtn.addEventListener("click", resetMatch);
 
+    // Confirm popup buttons
+    confirmYesBtn?.addEventListener?.("click", () => {
+      hideConfirmReset();
+      resetMatch();
+    });
+    confirmNoBtn?.addEventListener?.("click", hideConfirmReset);
+    confirmOverlay?.addEventListener?.("pointerdown", (ev) => {
+      if (ev.target === confirmOverlay) hideConfirmReset();
+    });
+
     playAgainBtn.addEventListener("click", () => {
       if (isMatchOver()) {
         resetMatch();
@@ -1270,6 +1336,7 @@ No more moves. Rotate/zoom to inspect the final board.`;
       if (playersChanged || levelChanged) wipeScoreboard();
 
       savePersisted();
+      syncMobileMenuVisibility();
       resetBoardOnly();
 
       if (isInitial) hasCompletedWelcome = true;
@@ -1289,7 +1356,37 @@ No more moves. Rotate/zoom to inspect the final board.`;
       showSettings();
     });
 
-    helpPrimaryBtn.addEventListener("click", () => {
+    // Mobile dropdown menu actions
+    function syncMobileMenuVisibility() {
+      const undoOpt = mobileMenu?.querySelector('option[value="undo"]');
+      if (undoOpt) undoOpt.hidden = (playersCount !== 2);
+    }
+
+    mobileMenu?.addEventListener?.("change", () => {
+      const v = mobileMenu.value;
+      mobileMenu.value = "";
+      if (!v) return;
+
+      if (v === "undo") {
+        if (playersCount === 2) undoMove();
+        return;
+      }
+      if (v === "reset") {
+        showConfirmReset();
+        return;
+      }
+      if (v === "options") {
+        showSettings();
+        return;
+      }
+      if (v === "help") {
+        showHelp("rules");
+        return;
+      }
+    });
+
+    // Primary help button: Start playing => open options; Continue => close help
+    helpPrimaryBtn?.addEventListener?.("click", () => {
       if (helpMode === "welcome") {
         hideHelp();
         showSettings();
@@ -1304,6 +1401,7 @@ No more moves. Rotate/zoom to inspect the final board.`;
       if (!hasCompletedWelcome) hasCompletedWelcome = true;
     });
 
+    // ESC closes help only when it's the Rules panel (not welcome)
     window.addEventListener("keydown", (ev) => {
       if (ev.key !== "Escape") return;
 
@@ -1495,6 +1593,7 @@ No more moves. Rotate/zoom to inspect the final board.`;
     loadPersisted();
     updateScoreUI();
     syncSettingsUI();
+    syncMobileMenuVisibility();
     undoBtn.style.display = (playersCount === 2) ? "inline-block" : "none";
 
     showHelp("welcome");
