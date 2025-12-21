@@ -705,6 +705,19 @@
     setVH();
 
     const controls = new OrbitControls(camera, renderer.domElement);
+
+    // Auto-rotate (used for end-of-game showcase)
+    function setAutoSpin(on) {
+      controls.autoRotate = !!on;
+      // OrbitControls auto-rotates around the world-up axis (Y), which reads as a horizontal spin.
+      controls.autoRotateSpeed = on ? 2.5 : 0;
+    }
+    setAutoSpin(false);
+
+    // If the user interacts with the camera while showcasing, stop the auto spin
+    controls.addEventListener('start', () => {
+      if (gameOver && controls.autoRotate) setAutoSpin(false);
+    });
     controls.enableDamping = true;
     controls.dampingFactor = 0.08;
     controls.target.set(0, 0, 0);
@@ -1305,6 +1318,7 @@
           gameOver = true;
           aiThinking = false;
           showOverlay("draw");
+        setAutoSpin(true);
           return;
         }
 
@@ -1365,6 +1379,7 @@
 
     function hideOverlay() {
       overlay.style.display = "none";
+      setAutoSpin(false);
     }
 
     function matchStyleTargetWins() {
@@ -1400,6 +1415,9 @@
       savePersisted();
 
       showOverlay("win", player);
+
+      // Showcase the winning state
+      setAutoSpin(true);
     }
 
     // --- Game lifecycle ---
@@ -1423,6 +1441,7 @@
     }
 
     function resetBoardOnly() {
+      setAutoSpin(false);
       syncMobileMenuVisibility();
       board = makeEmptyBoard();
       gameOver = false;
@@ -1465,6 +1484,7 @@
     }
 
     function resetMatch() {
+      setAutoSpin(false);
       wipeScoreboard();
       resetBoardOnly();
     }
