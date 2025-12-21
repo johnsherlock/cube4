@@ -910,6 +910,33 @@
       requestAnimationFrame(tick);
     }
 
+    // Subtle camera focus nudge toward a position (used to help spot CPU moves)
+    function nudgeCameraFocusTo(worldPos, { durationMs = 320, strength = 0.22, maxShift = 0.7 } = {}) {
+      if (!worldPos) return;
+      if (!controls) return;
+
+      const start = performance.now();
+      const from = controls.target.clone();
+      const delta = new THREE.Vector3().subVectors(worldPos, from);
+
+      // Move only a little, capped so we don't "snap" the board around.
+      const desiredShift = delta.multiplyScalar(strength);
+      if (desiredShift.length() > maxShift) desiredShift.setLength(maxShift);
+      const to = from.clone().add(desiredShift);
+
+      const easeOutQuad = (t) => 1 - (1 - t) * (1 - t);
+
+      const tick = (now) => {
+        const t = Math.min(1, (now - start) / durationMs);
+        const e = easeOutQuad(t);
+        controls.target.lerpVectors(from, to, e);
+        controls.update();
+        if (t < 1) requestAnimationFrame(tick);
+      };
+
+      requestAnimationFrame(tick);
+    }
+
     function removePiece(x,y,z) {
       board[x][y][z] = EMPTY;
 
@@ -1158,6 +1185,8 @@
         const player = aiPlayer;
         const cpuPiece = placePiece(x,y,z, player);
         animatePieceSpawn(cpuPiece, player);
+        // Option 3: subtle camera nudge to help the human spot the CPU move
+        nudgeCameraFocusTo(cpuPiece.position);
         lastMove = { x, y, z, player };
         undoBtn.disabled = true;
         clearSelection();
