@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>CUBE-4 – 3D Four-in-a-Row</title>
+  <title>CUBE-4 - 3D Four-in-a-Row</title>
   <style>
     :root { color-scheme: dark; }
     html, body {
@@ -175,7 +175,7 @@
     }
     #canvasWrap.vhfix { height: calc(var(--vh, 1vh) * 100); }
 
-    /* Win banner – top centre, non-blocking */
+    /* Win banner - top centre, non-blocking */
     #overlay {
       position: fixed;
       top: 72px;
@@ -278,7 +278,7 @@
   <div id="ui">
     <div id="left">
       <div class="pill" id="status">Current Player: Red</div>
-      <div class="pill" id="score"><span class="lbl">SCORE</span><span id="scoreText">Red 0 – 0 Blue</span></div>
+      <div class="pill" id="score"><span class="lbl">SCORE</span><span id="scoreText">Red 0 - 0 Blue</span></div>
     </div>
     <div id="right">
       <!-- Desktop controls -->
@@ -303,7 +303,7 @@
     <div class="card" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
       <h1 class="cardTitle" id="helpTitle">Welcome to CUBE-4</h1>
       <div class="helpBody" id="helpBody">
-        <p><b>Goal:</b> be the first to make a line of <b>four</b> of your pieces in the 4×4×4 cube — in <b>any direction</b> (across rows, columns, verticals, or diagonals through space).</p>
+        <p><b>Goal:</b> be the first to make a line of <b>four</b> of your pieces in the 4x4x4 cube - in <b>any direction</b> (across rows, columns, verticals, or diagonals through space).</p>
         <ul>
           <li><b>Rotate:</b> click-and-drag (one finger on mobile)</li>
           <li><b>Zoom:</b> scroll wheel / trackpad / pinch</li>
@@ -587,9 +587,9 @@
     }
 
     function updateScoreUI() {
-      scoreTextEl.textContent = `Red ${winsP1} – ${winsP2} Blue`;
+      scoreTextEl.textContent = `Red ${winsP1} - ${winsP2} Blue`;
       const dv = document.getElementById("difficultyValue");
-      if (dv) dv.textContent = String(aiLevel || '?'); 
+      if (dv) dv.textContent = String(aiLevel || 1);
     }
 
     // --- Overlay utilities ---
@@ -722,7 +722,7 @@
     const box = new THREE.BoxGeometry(frameSize + 1.4, frameSize + 1.4, frameSize + 1.4);
     const edges = new THREE.EdgesGeometry(box);
 
-    // Slightly thicker outline
+    // Slightly thicker outline (note: linewidth ignored on many platforms, but keep intent)
     const frameMat = new THREE.LineBasicMaterial({ color: 0x6f7a92, transparent: true, opacity: 0.42, linewidth: 2 });
     const frame = new THREE.LineSegments(edges, frameMat);
     scene.add(frame);
@@ -953,15 +953,32 @@
       const weights = { 1: 1, 2: 6, 3: 28 };
       let score = 0;
 
-      const center = 1.5;
+      // Positional preference (surface-first at low levels, center-first at higher levels)
+      function positionalPreferenceValue(level, x, y, z) {
+        const cx = 1.5, cy = 1.5, cz = 1.5;
+        const centerDist = Math.abs(x - cx) + Math.abs(y - cy) + Math.abs(z - cz);
+        const surfaceDist = Math.min(x, 3 - x) + Math.min(y, 3 - y) + Math.min(z, 3 - z);
+        const centerVal = 4.5 - centerDist;
+        const surfaceVal = 4.5 - surfaceDist;
+
+        const tByLevel = { 1: 0.00, 2: 0.25, 3: 0.50, 4: 0.75, 5: 0.90 };
+        const t = (tByLevel[level] ?? 0.25);
+        return (1 - t) * surfaceVal + t * centerVal;
+      }
+
+      const posSelfScaleByLevel = { 1: 0.55, 2: 0.45, 3: 0.30, 4: 0.35, 5: 0.40 };
+      const posOppScaleByLevel  = { 1: 0.05, 2: 0.10, 3: 0.18, 4: 0.22, 5: 0.25 };
+      const posSelfScale = posSelfScaleByLevel[aiLevel] ?? 0.40;
+      const posOppScale  = posOppScaleByLevel[aiLevel] ?? 0.18;
+
       for (let x=0; x<SIZE; x++)
         for (let y=0; y<SIZE; y++)
           for (let z=0; z<SIZE; z++) {
             const v = board[x][y][z];
             if (v === EMPTY) continue;
-            const dist = Math.abs(x-center)+Math.abs(y-center)+Math.abs(z-center);
-            const bonus = (3.5 - dist);
-            score += (v === forPlayer ? 1 : -1) * bonus;
+            const pref = positionalPreferenceValue(aiLevel, x, y, z);
+            if (v === forPlayer) score += pref * posSelfScale;
+            else if (v === opp) score -= pref * posOppScale;
           }
 
       for (const line of WIN_LINES) {
@@ -975,6 +992,7 @@
         if (fp > 0) score += weights[fp] || 0;
         if (op > 0) score -= (weights[op] || 0);
       }
+
       return score;
     }
 
@@ -1023,11 +1041,11 @@
       const busy = Math.min(1, filled / 40);
 
       const cfgByLevel = {
-        1: { pSeeWin: 0.55, pSeeBlock: 0.35, sample: 10, useMinimax: false, depth: 0, noise: 10.0 },
-        2: { pSeeWin: 0.75, pSeeBlock: 0.55, sample: 14, useMinimax: false, depth: 0, noise: 7.0 },
-        3: { pSeeWin: 0.90, pSeeBlock: 0.75, sample: 18, useMinimax: false, depth: 0, noise: 5.0 },
-        4: { pSeeWin: 0.95, pSeeBlock: 0.85, sample: 22, useMinimax: true,  depth: 2, noise: 3.5 },
-        5: { pSeeWin: 0.97, pSeeBlock: 0.90, sample: 26, useMinimax: true,  depth: 3, noise: 2.8 },
+        1: { pSeeWin: 0.50, pSeeBlock: 0.18, sample: 10, useMinimax: false, depth: 0, noise: 12.0 },
+        2: { pSeeWin: 0.70, pSeeBlock: 0.32, sample: 14, useMinimax: false, depth: 0, noise: 9.0 },
+        3: { pSeeWin: 0.88, pSeeBlock: 0.58, sample: 18, useMinimax: false, depth: 0, noise: 6.0 },
+        4: { pSeeWin: 0.95, pSeeBlock: 0.75, sample: 22, useMinimax: true,  depth: 2, noise: 4.2 },
+        5: { pSeeWin: 0.97, pSeeBlock: 0.82, sample: 26, useMinimax: true,  depth: 3, noise: 3.6 },
       };
 
       const cfg = cfgByLevel[aiLevel] || cfgByLevel[1];
@@ -1153,9 +1171,9 @@
         overlayTitle.textContent = `${playerName(player).toUpperCase()} WINS!`;
         overlayTitle.style.color = player === P1 ? "#ff4b4b" : "#4aa0ff";
 
-        const scoreLine = `Match score: Red ${winsP1} – ${winsP2} Blue`;
+        const scoreLine = `Match score: Red ${winsP1} - ${winsP2} Blue`;
         if (matchOver) {
-          overlaySub.textContent = `${scoreLine}\nMATCH OVER — ${playerName(player)} wins ${matchStyleLabel()}.`;
+          overlaySub.textContent = `${scoreLine}\nMATCH OVER - ${playerName(player)} wins ${matchStyleLabel()}.`;
         } else {
           overlaySub.textContent = `${scoreLine}\nRotate and zoom to inspect the winning line.`;
         }
@@ -1164,7 +1182,7 @@
       } else {
         overlayTitle.textContent = "DRAW!";
         overlayTitle.style.color = "#ffffff";
-        overlaySub.textContent = `Match score: Red ${winsP1} – ${winsP2} Blue\nNo more moves. Rotate/zoom to inspect the final board.`;
+        overlaySub.textContent = `Match score: Red ${winsP1} - ${winsP2} Blue\nNo more moves. Rotate/zoom to inspect the final board.`;
         playAgainBtn.textContent = "Next game";
       }
     }
@@ -1635,7 +1653,25 @@
       const mv = tryImmediate(P2);
       assert(Array.isArray(mv) && mv[0] === 3 && mv[1] === 0 && mv[2] === 0, "AI immediate win not found");
 
-      // Level bounds
+      // Positional preference sanity
+      board = makeEmptyBoard();
+      aiLevel = 1;
+      board[0][0][0] = P2;
+      const cornerScoreL1 = heuristicScore(P2);
+      board = makeEmptyBoard();
+      board[1][1][1] = P2;
+      const innerScoreL1 = heuristicScore(P2);
+      assert(cornerScoreL1 > innerScoreL1, "Level 1 should prefer surface/corners over center");
+
+      board = makeEmptyBoard();
+      aiLevel = 5;
+      board[0][0][0] = P2;
+      const cornerScoreL5 = heuristicScore(P2);
+      board = makeEmptyBoard();
+      board[1][1][1] = P2;
+      const innerScoreL5 = heuristicScore(P2);
+      assert(innerScoreL5 > cornerScoreL5, "Level 5 should prefer center control over corners");
+
       aiLevel = 999;
       aiLevel = clampInt(aiLevel, 1, 5);
       assert(aiLevel === 5, "clampInt upper bound failed");
