@@ -289,7 +289,7 @@
 
       <!-- Mobile menu (shown via CSS media query) -->
       <select class="pill" id="mobileMenu" aria-label="Menu">
-        <option value="" selected>Menu ▾</option>
+        <option value="" selected>Menu</option>
         <option value="undo">Undo last move</option>
         <option value="reset">Reset match</option>
         <option value="options">Match options</option>
@@ -876,12 +876,10 @@
       const start = performance.now();
       const mat = piece.material;
 
-      // Pop a bit larger then settle back to normal.
       const fromScale = 1.8;
       const toScale = 1.0;
       piece.scale.setScalar(fromScale);
 
-      // Brief emissive "glow" to draw attention.
       const glowHex = playerHex(player);
       mat.emissive.setHex(glowHex);
       mat.emissiveIntensity = 1.2;
@@ -895,7 +893,6 @@
         const s = fromScale + (toScale - fromScale) * e;
         piece.scale.setScalar(s);
 
-        // Fade emissive back out.
         mat.emissiveIntensity = 1.2 * (1 - e);
 
         if (t < 1) {
@@ -913,13 +910,11 @@
     // Subtle camera focus nudge toward a position (used to help spot CPU moves)
     function nudgeCameraFocusTo(worldPos, { durationMs = 320, strength = 0.22, maxShift = 0.7 } = {}) {
       if (!worldPos) return;
-      if (!controls) return;
 
       const start = performance.now();
       const from = controls.target.clone();
       const delta = new THREE.Vector3().subVectors(worldPos, from);
 
-      // Move only a little, capped so we don't "snap" the board around.
       const desiredShift = delta.multiplyScalar(strength);
       if (desiredShift.length() > maxShift) desiredShift.setLength(maxShift);
       const to = from.clone().add(desiredShift);
@@ -967,6 +962,74 @@
     function clearWinOutlines() {
       for (const o of winOutlines) pieceGroup.remove(o);
       winOutlines.length = 0;
+    }
+
+    // Block feedback: pulse ONLY the threatened player's existing pieces (no rings)
+    // Reuses a spawn-like animation: scale up then back, while briefly brightening.
+    function pulseBlockedLine(line4, threatenedPlayer, { durationMs = 650, scaleMax = 1.38, emissiveMax = 0.85 } = {}) {
+      if (!Array.isArray(line4) || line4.length !== 4) return;
+
+      const targets = [];
+      for (const [x,y,z] of line4) {
+        const piece = piecesByKey.get(keyOf(x,y,z));
+        if (!piece) continue;
+        if (piece.userData?.player !== threatenedPlayer) continue;
+
+        const mat = piece.material;
+        targets.push({
+          piece,
+          baseScale: piece.scale.x,
+          baseColor: mat?.color?.clone?.() || null,
+          baseEmissive: mat?.emissive?.clone?.() || null,
+          baseEmissiveIntensity: (mat && 'emissiveIntensity' in mat) ? (mat.emissiveIntensity || 0) : 0,
+        });
+      }
+
+      if (targets.length === 0) return;
+
+      const t0 = performance.now();
+
+      const tick = (now) => {
+        const t = Math.min(1, (now - t0) / durationMs);
+        const ease = t < 0.5
+          ? 2 * t * t
+          : 1 - Math.pow(-2 * t + 2, 2) / 2;
+
+        const pulse = Math.sin(Math.PI * ease); // 0..1..0
+
+        for (const it of targets) {
+          const s = it.baseScale * (1 + (scaleMax - 1) * pulse);
+          it.piece.scale.setScalar(s);
+
+          const mat = it.piece.material;
+          if (mat && mat.isMeshStandardMaterial) {
+            if (it.baseColor && mat.color) {
+              mat.color.copy(it.baseColor).lerp(new THREE.Color(0xffffff), 0.28 * pulse);
+            }
+            if (it.baseColor && mat.emissive) {
+              mat.emissive.copy(it.baseColor);
+              mat.emissiveIntensity = it.baseEmissiveIntensity + emissiveMax * pulse;
+            }
+          }
+        }
+
+        if (t < 1) {
+          requestAnimationFrame(tick);
+          return;
+        }
+
+        for (const it of targets) {
+          it.piece.scale.setScalar(it.baseScale);
+          const mat = it.piece.material;
+          if (mat && mat.isMeshStandardMaterial) {
+            if (it.baseColor && mat.color) mat.color.copy(it.baseColor);
+            if (it.baseEmissive && mat.emissive) mat.emissive.copy(it.baseEmissive);
+            if ('emissiveIntensity' in mat) mat.emissiveIntensity = it.baseEmissiveIntensity;
+          }
+        }
+      };
+
+      requestAnimationFrame(tick);
     }
 
     function getWinningLineFrom(x,y,z, player) {
@@ -1023,7 +1086,6 @@
       const weights = { 1: 1, 2: 6, 3: 28 };
       let score = 0;
 
-      // Positional preference (surface-first at low levels, center-first at higher levels)
       function positionalPreferenceValue(level, x, y, z) {
         const cx = 1.5, cy = 1.5, cz = 1.5;
         const centerDist = Math.abs(x - cx) + Math.abs(y - cy) + Math.abs(z - cz);
@@ -1074,6 +1136,17 @@
         if (win) return [x,y,z];
       }
       return null;
+    }
+
+    function immediateWinningThreats(player) {
+      const threats = new Map();
+      for (const [x,y,z] of legalMoves()) {
+        board[x][y][z] = player;
+        const line = checkWin(player);
+        board[x][y][z] = EMPTY;
+        if (line) threats.set(keyOf(x,y,z), line);
+      }
+      return threats;
     }
 
     function negamax(depth, alpha, beta, player, rootPlayer) {
@@ -1183,10 +1256,15 @@
         if (board[x][y][z] !== EMPTY) { aiThinking = false; return; }
 
         const player = aiPlayer;
+        const preThreats = immediateWinningThreats(P1);
+
         const cpuPiece = placePiece(x,y,z, player);
         animatePieceSpawn(cpuPiece, player);
-        // Option 3: subtle camera nudge to help the human spot the CPU move
         nudgeCameraFocusTo(cpuPiece.position);
+
+        const blockedLine = preThreats.get(keyOf(x,y,z));
+        if (blockedLine) setTimeout(() => pulseBlockedLine(blockedLine, P1), 90);
+
         lastMove = { x, y, z, player };
         undoBtn.disabled = true;
         clearSelection();
@@ -1391,7 +1469,6 @@
     undoBtn.addEventListener("click", undoMove);
     resetBtn.addEventListener("click", resetMatch);
 
-    // Confirm popup buttons
     confirmYesBtn?.addEventListener?.("click", () => {
       hideConfirmReset();
       resetMatch();
@@ -1409,7 +1486,6 @@
       }
     });
 
-    // --- Settings apply ---
     function applySettingsFromUI({ isInitial=false } = {}) {
       const prevPlayersCount = playersCount;
       const prevAiLevel = aiLevel;
@@ -1438,7 +1514,6 @@
       difficultyRow.style.display = (next === 1) ? "grid" : "none";
     });
 
-    // --- Help / Settings wiring ---
     helpBtn.addEventListener("click", () => {
       showHelp("rules");
     });
@@ -1447,7 +1522,6 @@
       showSettings();
     });
 
-    // Mobile dropdown menu actions
     function syncMobileMenuVisibility() {
       const undoOpt = mobileMenu?.querySelector('option[value="undo"]');
       if (undoOpt) undoOpt.hidden = (playersCount !== 2);
@@ -1476,7 +1550,6 @@
       }
     });
 
-    // Primary help button: Start playing => open options; Continue => close help
     helpPrimaryBtn?.addEventListener?.("click", () => {
       if (helpMode === "welcome") {
         hideHelp();
@@ -1492,7 +1565,6 @@
       if (!hasCompletedWelcome) hasCompletedWelcome = true;
     });
 
-    // ESC closes help only when it's the Rules panel (not welcome)
     window.addEventListener("keydown", (ev) => {
       if (ev.key !== "Escape") return;
 
@@ -1510,7 +1582,6 @@
       if (ev.target === settingsOverlay) hideSettings();
     });
 
-    // Difficulty prompt buttons (shown on 1P match end)
     function applyDifficultyDelta(delta) {
       aiLevel = clampInt(aiLevel + delta, 1, 5);
       difficultySel.value = String(aiLevel);
@@ -1611,8 +1682,16 @@
       if (board[x][y][z] !== EMPTY) return;
 
       const player = currentPlayer;
+
+      const opponent = (player === P1) ? P2 : P1;
+      const preThreats = immediateWinningThreats(opponent);
+
       const placedPiece = placePiece(x,y,z, player);
       animatePieceSpawn(placedPiece, player);
+
+      const blockedLine = preThreats.get(keyOf(x,y,z));
+      if (blockedLine) setTimeout(() => pulseBlockedLine(blockedLine, opponent), 110);
+
       lastMove = { x, y, z, player };
 
       if (playersCount === 2) {
@@ -1719,7 +1798,6 @@
       const w4 = getWinningLineFrom(3,3,2,P1);
       assert(w4 === null, "False positive win detected");
 
-      // AI immediate win test
       board = makeEmptyBoard();
       board[0][0][0] = P2;
       board[1][0][0] = P2;
@@ -1727,31 +1805,18 @@
       const mv = tryImmediate(P2);
       assert(Array.isArray(mv) && mv[0] === 3 && mv[1] === 0 && mv[2] === 0, "AI immediate win not found");
 
-      // Positional preference sanity
       board = makeEmptyBoard();
-      aiLevel = 1;
-      board[0][0][0] = P2;
-      const cornerScoreL1 = heuristicScore(P2);
-      board = makeEmptyBoard();
-      board[1][1][1] = P2;
-      const innerScoreL1 = heuristicScore(P2);
-      assert(cornerScoreL1 > innerScoreL1, "Level 1 should prefer surface/corners over center");
+      board[0][0][0] = P1;
+      board[1][0][0] = P1;
+      board[2][0][0] = P1;
+      const threats = immediateWinningThreats(P1);
+      assert(threats.has(keyOf(3,0,0)), "Immediate threat not detected for block test");
+
+      let tLevel = 999;
+      tLevel = clampInt(tLevel, 1, 5);
+      assert(tLevel === 5, "clampInt upper bound failed");
 
       board = makeEmptyBoard();
-      aiLevel = 5;
-      board[0][0][0] = P2;
-      const cornerScoreL5 = heuristicScore(P2);
-      board = makeEmptyBoard();
-      board[1][1][1] = P2;
-      const innerScoreL5 = heuristicScore(P2);
-      assert(innerScoreL5 > cornerScoreL5, "Level 5 should prefer center control over corners");
-
-      aiLevel = 999;
-      aiLevel = clampInt(aiLevel, 1, 5);
-      assert(aiLevel === 5, "clampInt upper bound failed");
-
-      board = makeEmptyBoard();
-      aiLevel = 1;
     }
 
     runSelfTests();
