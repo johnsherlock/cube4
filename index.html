@@ -855,6 +855,8 @@
       const geom = new THREE.CylinderGeometry(0.34, 0.34, 0.14, 28);
       const mat = new THREE.MeshStandardMaterial({
         color: player === P1 ? 0xff2b2b : 0x2f7dff,
+        emissive: 0x000000,
+        emissiveIntensity: 0.0,
         roughness: 0.35,
         metalness: 0.08
       });
@@ -865,6 +867,47 @@
 
       pieceGroup.add(piece);
       piecesByKey.set(keyOf(x,y,z), piece);
+      return piece;
+    }
+
+    function animatePieceSpawn(piece, player, { durationMs = 450 } = {}) {
+      if (!piece) return;
+
+      const start = performance.now();
+      const mat = piece.material;
+
+      // Pop a bit larger then settle back to normal.
+      const fromScale = 1.8;
+      const toScale = 1.0;
+      piece.scale.setScalar(fromScale);
+
+      // Brief emissive "glow" to draw attention.
+      const glowHex = playerHex(player);
+      mat.emissive.setHex(glowHex);
+      mat.emissiveIntensity = 1.2;
+
+      const easeOutCubic = (t) => 1 - Math.pow(1 - t, 3);
+
+      const tick = (now) => {
+        const t = Math.min(1, (now - start) / durationMs);
+        const e = easeOutCubic(t);
+
+        const s = fromScale + (toScale - fromScale) * e;
+        piece.scale.setScalar(s);
+
+        // Fade emissive back out.
+        mat.emissiveIntensity = 1.2 * (1 - e);
+
+        if (t < 1) {
+          requestAnimationFrame(tick);
+        } else {
+          piece.scale.setScalar(1.0);
+          mat.emissiveIntensity = 0.0;
+          mat.emissive.setHex(0x000000);
+        }
+      };
+
+      requestAnimationFrame(tick);
     }
 
     function removePiece(x,y,z) {
@@ -1113,7 +1156,8 @@
         if (board[x][y][z] !== EMPTY) { aiThinking = false; return; }
 
         const player = aiPlayer;
-        placePiece(x,y,z, player);
+        const cpuPiece = placePiece(x,y,z, player);
+        animatePieceSpawn(cpuPiece, player);
         lastMove = { x, y, z, player };
         undoBtn.disabled = true;
         clearSelection();
@@ -1538,7 +1582,8 @@
       if (board[x][y][z] !== EMPTY) return;
 
       const player = currentPlayer;
-      placePiece(x,y,z, player);
+      const placedPiece = placePiece(x,y,z, player);
+      animatePieceSpawn(placedPiece, player);
       lastMove = { x, y, z, player };
 
       if (playersCount === 2) {
