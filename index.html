@@ -709,8 +709,7 @@
     // Auto-rotate (used for end-of-game showcase)
     function setAutoSpin(on) {
       controls.autoRotate = !!on;
-      // OrbitControls auto-rotates around the world-up axis (Y), which reads as a horizontal spin.
-      controls.autoRotateSpeed = on ? 2.5 : 0;
+      controls.autoRotateSpeed = on ? 0.9 : 0;
     }
     setAutoSpin(false);
 
@@ -806,8 +805,13 @@
 
     const cellGroup = new THREE.Group();
     const pieceGroup = new THREE.Group();
+    const tierPickGroup = new THREE.Group();   // invisible non-overlapping slabs used ONLY when no tier selected
+    const pickGroup = new THREE.Group();       // invisible larger "hit" spheres used for placing (and can also select tier)
+
     scene.add(cellGroup);
     scene.add(pieceGroup);
+    scene.add(tierPickGroup);
+    scene.add(pickGroup);
 
     const piecesByKey = new Map();
     const winOutlines = [];
@@ -819,17 +823,19 @@
       return new THREE.Vector3(x - half, z - half, y - half);
     }
 
-    // Markers
+    // Markers (visual)
     const markers = [];
     const markerGeom = new THREE.SphereGeometry(0.14, 16, 12);
 
-    function defaultMarkerHex() { return 0x9aa3b2; }
+    const MARKER_DIM_HEX = 0x707a8f;
+    const MARKER_BRIGHT_HEX = 0xcfd8ea;
+
+    function defaultMarkerHex() { return MARKER_DIM_HEX; }
+    function brightMarkerHex() { return MARKER_BRIGHT_HEX; }
 
     // Opacity tuning
     const OP_BASE = 0.18;
-    const OP_OTHER_LEVELS = 0.08;
     const OP_LEVEL_MAX = 0.78;
-    const OP_LEVEL_MIN = 0.48;
 
     const baseMarkerMat = new THREE.MeshStandardMaterial({
       color: defaultMarkerHex(),
@@ -837,6 +843,17 @@
       opacity: OP_BASE,
       roughness: 0.4,
       metalness: 0.0
+    });
+
+    // Invisible hit spheres (larger click/touch target, without changing visuals)
+    const pickByKey = new Map();
+    const pickGeom = new THREE.SphereGeometry(0.30, 12, 10);
+    const pickMat = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.0,
+      depthWrite: false,
+      depthTest: false,
     });
 
     for (let x=0; x<SIZE; x++) {
@@ -847,36 +864,93 @@
           m.userData = { x, y, z, kind: "marker" };
           cellGroup.add(m);
           markers.push(m);
+
+          const p = new THREE.Mesh(pickGeom, pickMat.clone());
+          p.position.copy(m.position);
+          p.userData = { x, y, z, kind: "pick" };
+          pickGroup.add(p);
+          pickByKey.set(keyOf(x,y,z), p);
         }
       }
     }
 
-    function clearLevelFocus() {
+    // --- Tier pick slabs (Option A) ---
+    // Non-overlapping "slabs" with dead-space gaps: only active when no tier selected.
+    // These sit INSIDE the cube, so they never clip the cube edges.
+    const slabSize = 3.55;          // inside the frame
+    const slabThickness = 0.55;     // vertical thickness for each tier
+    const slabGap = 0.12;           // dead space between tiers
+
+    const slabMat = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.0,   // set to e.g. 0.06 for debugging
+      depthWrite: false,
+      depthTest: false,
+    });
+
+    function addTierSlab(zTier) {
+      const yWorld = (zTier - (SIZE - 1) / 2);
+      const g = new THREE.BoxGeometry(slabSize, slabThickness - slabGap, slabSize);
+      const slab = new THREE.Mesh(g, slabMat.clone());
+      slab.position.set(0, yWorld, 0);
+      slab.userData = { kind: "tier", zTier };
+      tierPickGroup.add(slab);
+    }
+
+    for (let z=0; z<SIZE; z++) addTierSlab(z);
+
+    function updateTierVisibility() {
+      const hasSelection = selectedLevelZ !== null;
+
+      // Tier slabs only exist to SELECT a tier.
+      tierPickGroup.visible = !hasSelection;
+
+      if (!hasSelection) {
+        // Tier-select mode:
+        // - show ALL EMPTY markers (dimmed) so the player can visually read tiers
+        // - pick spheres disabled so they don't interfere with tier slabs
+        for (const m of markers) {
+          const { x, y, z } = m.userData;
+          const empty = (board[x][y][z] === EMPTY);
+          m.visible = empty;
+          if (empty) {
+            m.material.opacity = 0.12;
+            m.material.color.setHex(defaultMarkerHex());
+          }
+
+          const p = pickByKey.get(keyOf(x,y,z));
+          if (p) p.visible = false;
+        }
+        return;
+      }
+
+      // Tier-selected mode:
+      // - hide ALL markers except EMPTY ones on the selected tier
+      // - make that tier brighter/easier to see
+      // - enable larger pick spheres only for that tier (hit target)
       for (const m of markers) {
-        if (!m.visible) continue;
-        m.material.opacity = OP_BASE;
-        m.material.color.setHex(defaultMarkerHex());
+        const { x, y, z } = m.userData;
+        const empty = (board[x][y][z] === EMPTY);
+        const onTier = (z === selectedLevelZ);
+
+        m.visible = onTier && empty;
+        if (m.visible) {
+          m.material.opacity = OP_LEVEL_MAX;
+          m.material.color.setHex(brightMarkerHex());
+        }
+
+        const p = pickByKey.get(keyOf(x,y,z));
+        if (p) p.visible = onTier && empty;
       }
     }
 
-    function applyLevelFocus(focus) {
-      for (const m of markers) {
-        if (!m.visible) continue;
-        const u = m.userData;
-        if (u.z === focus.z) {
-          const dist = Math.abs(u.x - focus.x) + Math.abs(u.y - focus.y);
-          const op = Math.max(OP_LEVEL_MIN, OP_LEVEL_MAX - dist * 0.10);
-          m.material.opacity = op;
-        } else {
-          m.material.opacity = OP_OTHER_LEVELS;
-        }
-        m.material.color.setHex(defaultMarkerHex());
-      }
-    }
+    // Start in tier-select mode.
+    updateTierVisibility();
 
     function clearSelection() {
       selectedLevelZ = null;
-      clearLevelFocus();
+      updateTierVisibility();
     }
 
     function inBounds(x,y,z) {
@@ -889,6 +963,9 @@
 
       const marker = markers.find(m => m.userData.x===x && m.userData.y===y && m.userData.z===z);
       if (marker) marker.visible = false;
+
+      const pk = pickByKey.get(keyOf(x,y,z));
+      if (pk) pk.visible = false;
 
       const geom = new THREE.CylinderGeometry(0.34, 0.34, 0.14, 28);
       const mat = new THREE.MeshStandardMaterial({
@@ -980,8 +1057,8 @@
         piecesByKey.delete(k);
       }
 
-      const marker = markers.find(m => m.userData.x===x && m.userData.y===y && m.userData.z===z);
-      if (marker) marker.visible = true;
+      // Visibility is controlled by updateTierVisibility; just refresh.
+      updateTierVisibility();
     }
 
     function addWinOutlineToPiece(piece) {
@@ -1002,8 +1079,6 @@
       winOutlines.length = 0;
     }
 
-    // Block feedback: pulse ONLY the threatened player's existing pieces (no rings)
-    // Reuses a spawn-like animation: scale up then back, while briefly brightening.
     function pulseBlockedLine(line4, threatenedPlayer, { durationMs = 650, scaleMax = 1.38, emissiveMax = 0.85 } = {}) {
       if (!Array.isArray(line4) || line4.length !== 4) return;
 
@@ -1033,7 +1108,7 @@
           ? 2 * t * t
           : 1 - Math.pow(-2 * t + 2, 2) / 2;
 
-        const pulse = Math.sin(Math.PI * ease); // 0..1..0
+        const pulse = Math.sin(Math.PI * ease);
 
         for (const it of targets) {
           const s = it.baseScale * (1 + (scaleMax - 1) * pulse);
@@ -1318,7 +1393,7 @@
           gameOver = true;
           aiThinking = false;
           showOverlay("draw");
-        setAutoSpin(true);
+          setAutoSpin(true);
           return;
         }
 
@@ -1363,16 +1438,19 @@
 
         const scoreLine = `Match score: Red ${winsP1} - ${winsP2} Blue`;
         if (matchOver) {
-          overlaySub.textContent = `${scoreLine}\nMATCH OVER - ${playerName(player)} wins ${matchStyleLabel()}.`;
+          overlaySub.textContent = `${scoreLine}
+MATCH OVER - ${playerName(player)} wins ${matchStyleLabel()}.`;
         } else {
-          overlaySub.textContent = `${scoreLine}\nRotate and zoom to inspect the winning line.`;
+          overlaySub.textContent = `${scoreLine}
+Rotate and zoom to inspect the winning line.`;
         }
 
         playAgainBtn.textContent = matchOver ? "New match" : "Next game";
       } else {
         overlayTitle.textContent = "DRAW!";
         overlayTitle.style.color = "#ffffff";
-        overlaySub.textContent = `Match score: Red ${winsP1} - ${winsP2} Blue\nNo more moves. Rotate/zoom to inspect the final board.`;
+        overlaySub.textContent = `Match score: Red ${winsP1} - ${winsP2} Blue
+No more moves. Rotate/zoom to inspect the final board.`;
         playAgainBtn.textContent = "Next game";
       }
     }
@@ -1416,7 +1494,6 @@
 
       showOverlay("win", player);
 
-      // Showcase the winning state
       setAutoSpin(true);
     }
 
@@ -1450,16 +1527,18 @@
       piecesByKey.clear();
       clearWinOutlines();
 
+      // Reset marker/pick visibility via updateTierVisibility
       for (const m of markers) {
-        m.visible = true;
         m.scale.setScalar(1.0);
         m.material.opacity = OP_BASE;
         m.material.color.setHex(defaultMarkerHex());
       }
+      for (const p of pickByKey.values()) p.visible = false;
+
+      clearSelection();
 
       lastMove = null;
       undoBtn.disabled = true;
-      clearSelection();
       hideOverlay();
 
       currentPlayer = chooseStartingPlayer();
@@ -1697,8 +1776,20 @@
       mouse.y = -(((ev.clientY - rect.top) / rect.height) * 2 - 1);
 
       raycaster.setFromCamera(mouse, camera);
-      const hits = raycaster.intersectObjects(cellGroup.children, false);
-      const hit = hits.find(h => h.object.visible);
+
+      // Only raycast the relevant groups for the current mode.
+      const targets = (selectedLevelZ === null)
+        ? [tierPickGroup, pickGroup]   // tier select: slabs + (optional) pick spheres if you want later
+        : [pickGroup];                 // place: only pick spheres on selected tier are visible
+
+      const hits = raycaster.intersectObjects(targets, true);
+      const hit = hits.find(h => {
+        const o = h.object;
+        if (!o) return false;
+        if (o.userData?.kind === "tier") return !!o.visible;
+        if (o.userData?.kind === "pick") return !!o.visible;
+        return false;
+      });
 
       if (!hit) {
         clearSelection();
@@ -1707,19 +1798,34 @@
 
       if (isAITurn() || aiThinking) return;
 
-      const { x, y, z } = hit.object.userData;
+      const obj = hit.object;
+      const hadSelectionAtClick = (selectedLevelZ !== null);
 
-      if (selectedLevelZ === null) {
+      // Tier selection
+      if (obj.userData?.kind === "tier") {
+        if (selectedLevelZ !== null) {
+          clearSelection();
+          return;
+        }
+        selectedLevelZ = obj.userData.zTier;
+        updateTierVisibility();
+        return;
+      }
+
+      // Pick sphere selection / placement
+      const { x, y, z } = obj.userData;
+
+      // If there was no selection when the click started, the first click should ONLY select the tier.
+      // (Even if the user tapped directly on a spot.)
+      if (!hadSelectionAtClick) {
         selectedLevelZ = z;
-        applyLevelFocus({ x, y, z });
+        updateTierVisibility();
         return;
       }
 
       if (selectedLevelZ !== z) {
-        if (!isCoarsePointer) {
-          selectedLevelZ = z;
-          applyLevelFocus({ x, y, z });
-        }
+        // Desktop: switching tiers requires deselect (or click outside). Mobile: only deselect by clicking outside.
+        if (!isCoarsePointer) clearSelection();
         return;
       }
 
@@ -1727,7 +1833,6 @@
       if (board[x][y][z] !== EMPTY) return;
 
       const player = currentPlayer;
-
       const opponent = (player === P1) ? P2 : P1;
       const preThreats = immediateWinningThreats(opponent);
 
@@ -1860,6 +1965,14 @@
       let tLevel = 999;
       tLevel = clampInt(tLevel, 1, 5);
       assert(tLevel === 5, "clampInt upper bound failed");
+
+      // Tier selection visibility should not throw
+      selectedLevelZ = null;
+      updateTierVisibility();
+      selectedLevelZ = 0;
+      updateTierVisibility();
+      selectedLevelZ = null;
+      updateTierVisibility();
 
       board = makeEmptyBoard();
     }
