@@ -926,20 +926,22 @@
       }
 
       // Tier-selected mode:
-      // - hide ALL markers except EMPTY ones on the selected tier
-      // - make that tier brighter/easier to see
-      // - enable larger pick spheres only for that tier (hit target)
+      // - hide ALL empty markers except those on the selected tier
+      // - enable larger pick spheres ONLY for the selected tier
+      // - (placed pieces remain visible on all tiers)
       for (const m of markers) {
         const { x, y, z } = m.userData;
         const empty = (board[x][y][z] === EMPTY);
         const onTier = (z === selectedLevelZ);
 
+        // Only show empty markers on the selected tier
         m.visible = onTier && empty;
         if (m.visible) {
           m.material.opacity = OP_LEVEL_MAX;
           m.material.color.setHex(brightMarkerHex());
         }
 
+        // Only allow placement picking on the selected tier
         const p = pickByKey.get(keyOf(x,y,z));
         if (p) p.visible = onTier && empty;
       }
@@ -1718,6 +1720,14 @@ No more moves. Rotate/zoom to inspect the final board.`;
     diffKeepBtn?.addEventListener?.("click", () => applyDifficultyDelta(0));
 
     // --- Pointer handling: two-click selection on ALL devices ---
+    // Haptics: small tactile feedback on supported mobile devices
+    function hapticTap() {
+      try {
+        // Works on many Android browsers; iOS support is limited.
+        if (navigator.vibrate) navigator.vibrate(10);
+      } catch {}
+    }
+
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
@@ -1809,6 +1819,8 @@ No more moves. Rotate/zoom to inspect the final board.`;
         }
         selectedLevelZ = obj.userData.zTier;
         updateTierVisibility();
+        // Haptic only when selecting (not deselecting)
+        hapticTap();
         return;
       }
 
@@ -1820,6 +1832,8 @@ No more moves. Rotate/zoom to inspect the final board.`;
       if (!hadSelectionAtClick) {
         selectedLevelZ = z;
         updateTierVisibility();
+        // Haptic only when selecting (not deselecting)
+        hapticTap();
         return;
       }
 
@@ -1838,6 +1852,8 @@ No more moves. Rotate/zoom to inspect the final board.`;
 
       const placedPiece = placePiece(x,y,z, player);
       animatePieceSpawn(placedPiece, player);
+      // Haptic on confirmed placement
+      hapticTap();
 
       const blockedLine = preThreats.get(keyOf(x,y,z));
       if (blockedLine) setTimeout(() => pulseBlockedLine(blockedLine, opponent), 110);
