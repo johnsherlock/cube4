@@ -1,0 +1,285 @@
+:root { color-scheme: dark; }
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+body {
+  margin: 0;
+  background: #0f1115;
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+
+/* Let OrbitControls own touch gestures on mobile */
+canvas { touch-action: none; }
+
+#ui {
+  position: fixed; top: 12px; left: 12px; right: 12px;
+  display: flex; gap: 10px; align-items: center; justify-content: space-between;
+  pointer-events: none;
+  z-index: 10;
+}
+#left, #right { display: flex; align-items: center; gap: 10px; pointer-events: none; }
+
+.pill {
+  --pill-accent: rgba(255,255,255,0.10);
+  pointer-events: auto;
+  background: rgba(20, 24, 34, 0.78);
+  box-shadow: inset 0 0 0 999px var(--pill-accent), 0 6px 24px rgba(0,0,0,0.25);
+  border: 1px solid rgba(255,255,255,0.14);
+  backdrop-filter: blur(8px);
+  border-radius: 999px;
+  padding: 10px 14px;
+  color: #fff;
+  user-select: none;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+
+.pill.small { padding: 10px 12px; font-weight: 800; }
+
+button.pill { cursor: pointer; }
+
+select.pill {
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 34px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, rgba(255,255,255,0.75) 50%),
+    linear-gradient(135deg, rgba(255,255,255,0.75) 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) 50%,
+    calc(100% - 12px) 50%;
+  background-size: 6px 6px, 6px 6px;
+  background-repeat: no-repeat;
+}
+select.pill:focus, button.pill:focus {
+  outline: 2px solid rgba(255,255,255,0.18);
+  outline-offset: 2px;
+}
+
+#undoBtn, #resetBtn {
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 900;
+  border: 1px solid rgba(255,255,255,0.18);
+}
+#undoBtn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* Small icon button */
+button.pill.icon {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  line-height: 1;
+  border-radius: 999px;
+  font-size: 18px;
+}
+
+/* Overlays */
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 30;
+  background: transparent;
+  backdrop-filter: none;
+}
+
+/* Help overlay: does NOT dim/blur, and does NOT block the canvas */
+#helpOverlay { pointer-events: none; }
+
+.card {
+  position: relative;
+  pointer-events: auto;
+  width: min(720px, calc(100vw - 44px));
+  border-radius: 18px;
+  background: rgba(16, 18, 24, 0.62);
+  border: 1px solid rgba(255,255,255,0.18);
+  box-shadow: 0 18px 60px rgba(0,0,0,0.55);
+  padding: 18px 18px 14px;
+  color: #fff;
+}
+
+.cardTitle {
+  margin: 0 0 10px 0;
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: 0.6px;
+}
+
+.helpBody p, .settingsBody p { margin: 10px 0; opacity: 0.95; }
+.helpBody ul { margin: 10px 0 8px 18px; padding: 0; opacity: 0.92; }
+.helpBody li { margin: 6px 0; }
+.tiny { opacity: 0.75; font-size: 13px; }
+
+.actions {
+  margin-top: 14px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+/* Settings overlay blocks the canvas so players can safely change options */
+#settingsOverlay { pointer-events: auto; }
+#settingsOverlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: transparent;
+}
+
+.settingsBody {
+  display: grid;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 160px 1fr;
+  gap: 10px;
+  align-items: center;
+}
+
+.row label {
+  opacity: 0.9;
+  font-weight: 800;
+  letter-spacing: 0.2px;
+  font-size: 13px;
+}
+
+@media (max-width: 520px) {
+  .row { grid-template-columns: 1fr; }
+}
+
+#canvasWrap {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100dvh;
+}
+#canvasWrap.vhfix { height: calc(var(--vh, 1vh) * 100); }
+
+/* Win banner - top centre, non-blocking */
+#overlay {
+  position: fixed;
+  top: 72px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  display: none;
+  pointer-events: none;
+}
+
+#overlayCard {
+  pointer-events: auto;
+  text-align: center;
+  padding: 16px 22px;
+  border-radius: 16px;
+  background: rgba(16, 18, 24, 0.92);
+  border: 1px solid rgba(255,255,255,0.18);
+  box-shadow: 0 18px 60px rgba(0,0,0,0.45);
+  backdrop-filter: blur(6px);
+  max-width: 520px; /* keep it from getting silly-wide on desktop */
+  width: min(520px, calc(100vw - 44px));
+}
+
+/* End-of-game popup: use mobile width better (wider, less tall) */
+@media (max-width: 520px) {
+  #overlay { top: 84px; }
+  #overlayCard {
+    margin: 0 0 6px 0;
+    padding: 14px 16px;
+    border-radius: 18px;
+  }
+  #overlayTitle {
+    font-size: 28px;
+    letter-spacing: 0.8px;
+    margin-bottom: 6px;
+  }
+  #overlaySub {
+    font-size: 13.5px;
+    line-height: 1.32;
+    margin-bottom: 12px;
+  }
+  #playAgainBtn {
+    padding: 10px 16px;
+  }
+}
+
+#overlayTitle {
+  font-size: 30px;
+  margin: 0 0 6px 0;
+  font-weight: 1000;
+  letter-spacing: 1px;
+}
+
+#overlaySub {
+  margin: 0 0 10px 0;
+  opacity: 0.88;
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1.35;
+  white-space: pre-line;
+}
+
+#playAgainBtn {
+  cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+  border-radius: 999px;
+  padding: 8px 14px;
+  font-weight: 900;
+  letter-spacing: 0.3px;
+}
+
+/* Bottom-left logo */
+#logo {
+  position: fixed;
+  left: 14px;
+  bottom: 14px;
+  z-index: 5;
+  font-weight: 1000;
+  letter-spacing: 1.5px;
+  font-size: 30px;
+  color: rgba(255,255,255,0.65);
+  pointer-events: none;
+  user-select: none;
+}
+#logo span { color: #ff4b4b; }
+
+/* Score pill look more like a scoreboard */
+#score {
+  font-weight: 900;
+  letter-spacing: 0.4px;
+  opacity: 0.95;
+}
+#score .lbl { opacity: 0.8; font-weight: 800; margin-right: 8px; }
+
+/* Mobile layout: stack status + score, replace buttons with a single dropdown */
+#mobileMenu { display: none; }
+
+@media (max-width: 520px) {
+  #ui { align-items: flex-start; }
+  #left {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  #right { justify-content: flex-end; }
+  #undoBtn, #resetBtn, #helpBtn, #settingsBtn { display: none !important; }
+  #mobileMenu { display: inline-flex; min-width: 140px; }
+}

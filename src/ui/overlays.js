@@ -1,0 +1,127 @@
+export function createOverlayManager({
+  elements,
+  state,
+  helpers,
+  onConfirmReset,
+}) {
+  const {
+    helpOverlay,
+    helpPrimaryBtn,
+    settingsOverlay,
+    confirmOverlay,
+    confirmYesBtn,
+    confirmNoBtn,
+    overlay,
+    overlayTitle,
+    overlaySub,
+    playAgainBtn,
+    difficultyPrompt,
+    cpuLevelText,
+    diffUpBtn,
+  } = elements;
+
+  let helpMode = "welcome";
+
+  function showHelp(mode) {
+    helpMode = mode;
+    helpOverlay.style.display = "flex";
+    helpOverlay.setAttribute("aria-hidden", "false");
+
+    const titleEl = document.getElementById("helpTitle");
+    if (titleEl) titleEl.textContent = (mode === "welcome") ? "Welcome to CUBE4" : "How to play";
+
+    if (helpPrimaryBtn) {
+      helpPrimaryBtn.textContent = (mode === "welcome") ? "Start playing" : "Continue";
+      helpPrimaryBtn?.focus?.();
+    }
+  }
+
+  function hideHelp() {
+    helpOverlay.style.display = "none";
+    helpOverlay.setAttribute("aria-hidden", "true");
+    if (!state.userHasMovedCamera) helpers.fitCameraToCube();
+  }
+
+  function showConfirmReset() {
+    confirmOverlay.style.display = "flex";
+    confirmOverlay.setAttribute("aria-hidden", "false");
+    confirmNoBtn?.focus?.();
+  }
+
+  function hideConfirmReset() {
+    confirmOverlay.style.display = "none";
+    confirmOverlay.setAttribute("aria-hidden", "true");
+  }
+
+  function showOverlay(kind, player) {
+    overlay.style.display = "flex";
+
+    const matchOver = (kind === "win") ? helpers.isMatchOver() : false;
+    const showDiffPrompt = helpers.isOnePlayerMode() && matchOver;
+
+    if (difficultyPrompt) difficultyPrompt.style.display = showDiffPrompt ? "block" : "none";
+    if (cpuLevelText) cpuLevelText.textContent = String(state.aiLevel);
+    if (diffUpBtn) diffUpBtn.style.display = (state.aiLevel >= 5) ? "none" : "inline-block";
+
+    playAgainBtn.style.display = showDiffPrompt ? "none" : "inline-block";
+
+    if (kind === "win") {
+      overlayTitle.textContent = `${helpers.playerName(player).toUpperCase()} WINS!`;
+      overlayTitle.style.color = player === 1 ? "#ff4b4b" : "#4aa0ff";
+
+      const scoreLine = helpers.getScoreLine();
+      if (matchOver) {
+        overlaySub.textContent = `${scoreLine}
+MATCH OVER - ${helpers.playerName(player)} wins ${helpers.matchStyleLabel()}.`;
+      } else {
+        overlaySub.textContent = `${scoreLine}
+Rotate and zoom to inspect the winning line.`;
+      }
+
+      playAgainBtn.textContent = matchOver ? "New match" : "Next game";
+    } else {
+      overlayTitle.textContent = "DRAW!";
+      overlayTitle.style.color = "#ffffff";
+      overlaySub.textContent = `${helpers.getScoreLine()}
+No more moves. Rotate/zoom to inspect the final board.`;
+      playAgainBtn.textContent = "Next game";
+    }
+  }
+
+  function hideOverlay() {
+    overlay.style.display = "none";
+    helpers.setAutoSpin(false);
+  }
+
+  helpPrimaryBtn?.addEventListener?.("click", () => {
+    if (helpMode === "welcome") {
+      hideHelp();
+      helpers.showSettings();
+    } else {
+      hideHelp();
+    }
+  });
+
+  confirmYesBtn?.addEventListener?.("click", () => {
+    hideConfirmReset();
+    onConfirmReset();
+  });
+  confirmNoBtn?.addEventListener?.("click", hideConfirmReset);
+  confirmOverlay?.addEventListener?.("pointerdown", (ev) => {
+    if (ev.target === confirmOverlay) hideConfirmReset();
+  });
+
+  settingsOverlay?.addEventListener?.("pointerdown", (ev) => {
+    if (ev.target === settingsOverlay) helpers.hideSettings();
+  });
+
+  return {
+    showHelp,
+    hideHelp,
+    showConfirmReset,
+    hideConfirmReset,
+    showOverlay,
+    hideOverlay,
+    getHelpMode: () => helpMode,
+  };
+}
