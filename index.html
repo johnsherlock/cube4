@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>CUBE-4 - 3D Four-in-a-Row</title>
+  <title>CUBE4 - 3D Four-in-a-Row</title>
   <style>
     :root { color-scheme: dark; }
     html, body {
@@ -326,7 +326,7 @@
   <!-- Help / Welcome overlay (non-blocking; no X; no escape for welcome) -->
   <div class="overlay" id="helpOverlay" aria-hidden="true">
     <div class="card" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
-      <h1 class="cardTitle" id="helpTitle">Welcome to CUBE-4</h1>
+      <h1 class="cardTitle" id="helpTitle">Welcome to CUBE4</h1>
       <div class="helpBody" id="helpBody">
         <p><b>Goal:</b> be the first to make a line of <b>four</b> of your pieces in the 4x4x4 cube - in <b>any direction</b> (across rows, columns, verticals, or diagonals through space).</p>
         <ul>
@@ -627,7 +627,7 @@
       helpOverlay.setAttribute("aria-hidden", "false");
 
       const titleEl = document.getElementById("helpTitle");
-      if (titleEl) titleEl.textContent = (mode === "welcome") ? "Welcome to CUBE-4" : "How to play";
+      if (titleEl) titleEl.textContent = (mode === "welcome") ? "Welcome to CUBE4" : "How to play";
 
       if (helpPrimaryBtn) {
         helpPrimaryBtn.textContent = (mode === "welcome") ? "Start playing" : "Continue";
@@ -709,7 +709,7 @@
     // Auto-rotate (used for end-of-game showcase)
     function setAutoSpin(on) {
       controls.autoRotate = !!on;
-      controls.autoRotateSpeed = on ? 0.9 : 0;
+      controls.autoRotateSpeed = on ? 2.5 : 0;
     }
     setAutoSpin(false);
 
@@ -1299,11 +1299,27 @@
       const busy = Math.min(1, filled / 40);
 
       const cfgByLevel = {
+        // Easy
+        // 1: { pSeeWin: 0.50, pSeeBlock: 0.18, sample: 10, useMinimax: false, depth: 0, noise: 12.0 },
+        // 2: { pSeeWin: 0.70, pSeeBlock: 0.32, sample: 14, useMinimax: false, depth: 0, noise: 9.0 },
+        // 3: { pSeeWin: 0.88, pSeeBlock: 0.58, sample: 18, useMinimax: false, depth: 0, noise: 6.0 },
+        // 4: { pSeeWin: 0.95, pSeeBlock: 0.75, sample: 22, useMinimax: true,  depth: 2, noise: 4.2 },
+        // 5: { pSeeWin: 0.97, pSeeBlock: 0.82, sample: 26, useMinimax: true,  depth: 3, noise: 3.6 },
+        
+        // Hard
+        // 1: { pSeeWin: 0.55, pSeeBlock: 0.35, sample: 10, useMinimax: false, depth: 0, noise: 10.0 },
+        // 2: { pSeeWin: 0.75, pSeeBlock: 0.55, sample: 14, useMinimax: false, depth: 0, noise: 7.0 },
+        // 3: { pSeeWin: 0.90, pSeeBlock: 0.75, sample: 18, useMinimax: false, depth: 0, noise: 5.0 },
+        // 4: { pSeeWin: 0.95, pSeeBlock: 0.85, sample: 22, useMinimax: true,  depth: 2, noise: 3.5 },
+        // 5: { pSeeWin: 0.97, pSeeBlock: 0.90, sample: 26, useMinimax: true,  depth: 3, noise: 2.8 },
+
+        // Start easy, gets harder
         1: { pSeeWin: 0.50, pSeeBlock: 0.18, sample: 10, useMinimax: false, depth: 0, noise: 12.0 },
         2: { pSeeWin: 0.70, pSeeBlock: 0.32, sample: 14, useMinimax: false, depth: 0, noise: 9.0 },
-        3: { pSeeWin: 0.88, pSeeBlock: 0.58, sample: 18, useMinimax: false, depth: 0, noise: 6.0 },
-        4: { pSeeWin: 0.95, pSeeBlock: 0.75, sample: 22, useMinimax: true,  depth: 2, noise: 4.2 },
-        5: { pSeeWin: 0.97, pSeeBlock: 0.82, sample: 26, useMinimax: true,  depth: 3, noise: 3.6 },
+        3: { pSeeWin: 0.90, pSeeBlock: 0.62, sample: 18, useMinimax: false, depth: 0, noise: 6.0 },
+        4: { pSeeWin: 0.95, pSeeBlock: 0.85, sample: 22, useMinimax: true,  depth: 2, noise: 3.5 },
+        5: { pSeeWin: 0.97, pSeeBlock: 0.90, sample: 26, useMinimax: true,  depth: 2, noise: 3.1 },
+
       };
 
       const cfg = cfgByLevel[aiLevel] || cfgByLevel[1];
