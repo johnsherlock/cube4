@@ -6,6 +6,7 @@ export function initSettings({
   syncMobileMenuVisibility,
   resetBoardOnly,
   updateScoreUI,
+  confirmApply,
 }) {
   const {
     settingsOverlay,
@@ -38,14 +39,23 @@ export function initSettings({
     settingsOverlay.setAttribute("aria-hidden", "true");
   }
 
-  function applySettingsFromUI({ isInitial = false } = {}) {
+  function readSettingsFromUI() {
+    return {
+      playersCount: Number(playersSel.value) === 1 ? 1 : 2,
+      aiLevel: clampInt(Number(difficultySel.value), 1, 5),
+      firstMovePolicy: firstMoveSel.value,
+      matchStyle: matchSel.value,
+    };
+  }
+
+  function applySettings(next, { isInitial = false } = {}) {
     const prevPlayersCount = state.playersCount;
     const prevAiLevel = state.aiLevel;
 
-    state.playersCount = Number(playersSel.value) === 1 ? 1 : 2;
-    state.aiLevel = clampInt(Number(difficultySel.value), 1, 5);
-    state.firstMovePolicy = firstMoveSel.value;
-    state.matchStyle = matchSel.value;
+    state.playersCount = next.playersCount;
+    state.aiLevel = next.aiLevel;
+    state.firstMovePolicy = next.firstMovePolicy;
+    state.matchStyle = next.matchStyle;
 
     const playersChanged = (state.playersCount !== prevPlayersCount);
     const levelChanged = (state.playersCount === 1) && (state.aiLevel !== prevAiLevel);
@@ -70,15 +80,37 @@ export function initSettings({
   });
 
   closeSettingsBtn.addEventListener("click", () => {
-    applySettingsFromUI({ isInitial: !state.hasCompletedWelcome });
-    hideSettings();
-    if (!state.hasCompletedWelcome) state.hasCompletedWelcome = true;
+    const next = readSettingsFromUI();
+    const hasChanges = (
+      next.playersCount !== state.playersCount ||
+      next.aiLevel !== state.aiLevel ||
+      next.firstMovePolicy !== state.firstMovePolicy ||
+      next.matchStyle !== state.matchStyle
+    );
+
+    const doApply = () => {
+      applySettings(next, { isInitial: !state.hasCompletedWelcome });
+      hideSettings();
+      if (!state.hasCompletedWelcome) state.hasCompletedWelcome = true;
+    };
+
+    if (hasChanges && typeof confirmApply === "function") {
+      confirmApply({
+        title: "Apply match options?",
+        body: "Changing match options will reset the current game.",
+        confirmLabel: "Apply & reset",
+        onConfirm: doApply,
+      });
+      return;
+    }
+
+    doApply();
   });
 
   return {
     showSettings,
     hideSettings,
     syncSettingsUI,
-    applySettingsFromUI,
+    applySettingsFromUI: (opts) => applySettings(readSettingsFromUI(), opts),
   };
 }

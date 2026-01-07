@@ -46,6 +46,8 @@ const difficultyPrompt = document.getElementById("difficultyPrompt");
 const confirmOverlay = document.getElementById("confirmOverlay");
 const confirmYesBtn = document.getElementById("confirmYesBtn");
 const confirmNoBtn = document.getElementById("confirmNoBtn");
+const confirmTitle = document.getElementById("confirmTitle");
+const confirmBody = document.getElementById("confirmBody");
 const cpuLevelText = document.getElementById("cpuLevelText");
 const diffDownBtn = document.getElementById("diffDownBtn");
 const diffKeepBtn = document.getElementById("diffKeepBtn");
@@ -172,6 +174,7 @@ function clearSelection() {
 }
 
 let mobile;
+let confirmApply = null;
 
 function syncMobileMenuVisibility() {
   mobile?.syncMobileMenuVisibility?.();
@@ -190,6 +193,7 @@ const settings = initSettings({
   syncMobileMenuVisibility,
   resetBoardOnly,
   updateScoreUI,
+  confirmApply: (opts) => confirmApply?.(opts),
 });
 
 const overlays = createOverlayManager({
@@ -201,6 +205,8 @@ const overlays = createOverlayManager({
     confirmOverlay,
     confirmYesBtn,
     confirmNoBtn,
+    confirmTitle,
+    confirmBody,
     overlay,
     overlayTitle,
     overlaySub,
@@ -223,6 +229,7 @@ const overlays = createOverlayManager({
   },
   onConfirmReset: () => resetMatch(),
 });
+confirmApply = overlays.showConfirm;
 
 mobile = initMobileMenu({
   mobileMenu,
@@ -444,7 +451,7 @@ function maybeAIMove() {
 }
 
 undoBtn.addEventListener("click", undoMove);
-resetBtn.addEventListener("click", resetMatch);
+resetBtn.addEventListener("click", () => overlays.showConfirmReset());
 
 playAgainBtn.addEventListener("click", () => {
   if (isMatchOver()) {

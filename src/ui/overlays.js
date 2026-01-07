@@ -12,6 +12,8 @@ export function createOverlayManager({
     confirmOverlay,
     confirmYesBtn,
     confirmNoBtn,
+    confirmTitle,
+    confirmBody,
     overlay,
     overlayTitle,
     overlaySub,
@@ -22,6 +24,7 @@ export function createOverlayManager({
   } = elements;
 
   let helpMode = "welcome";
+  let reopenSettingsOnClose = false;
 
   function showHelp(mode) {
     helpMode = mode;
@@ -44,15 +47,35 @@ export function createOverlayManager({
     if (!state.userHasMovedCamera) helpers.fitCameraToCube();
   }
 
-  function showConfirmReset() {
+  let confirmAction = null;
+
+  function showConfirm({ title, body, confirmLabel, onConfirm } = {}) {
+    if (confirmTitle && title) confirmTitle.textContent = title;
+    if (confirmBody && body) confirmBody.textContent = body;
+    if (confirmYesBtn && confirmLabel) confirmYesBtn.textContent = confirmLabel;
+    confirmAction = onConfirm || null;
+    reopenSettingsOnClose = (settingsOverlay?.style?.display === "flex");
+    if (reopenSettingsOnClose) helpers.hideSettings();
     confirmOverlay.style.display = "flex";
     confirmOverlay.setAttribute("aria-hidden", "false");
     confirmNoBtn?.focus?.();
   }
 
-  function hideConfirmReset() {
+  function showConfirmReset() {
+    showConfirm({
+      title: "Reset match?",
+      body: "This will clear the board and wipe the scoreboard for the current match.",
+      confirmLabel: "Yes",
+      onConfirm: onConfirmReset,
+    });
+  }
+
+  function hideConfirmReset({ restoreSettings = true } = {}) {
     confirmOverlay.style.display = "none";
     confirmOverlay.setAttribute("aria-hidden", "true");
+    confirmAction = null;
+    if (restoreSettings && reopenSettingsOnClose) helpers.showSettings();
+    reopenSettingsOnClose = false;
   }
 
   function showOverlay(kind, player) {
@@ -105,10 +128,11 @@ No more moves. Rotate/zoom to inspect the final board.`;
   });
 
   confirmYesBtn?.addEventListener?.("click", () => {
-    hideConfirmReset();
-    onConfirmReset();
+    const action = confirmAction || onConfirmReset;
+    hideConfirmReset({ restoreSettings: false });
+    if (action) action();
   });
-  confirmNoBtn?.addEventListener?.("click", hideConfirmReset);
+  confirmNoBtn?.addEventListener?.("click", () => hideConfirmReset());
   confirmOverlay?.addEventListener?.("pointerdown", (ev) => {
     if (ev.target === confirmOverlay) hideConfirmReset();
   });
@@ -120,6 +144,7 @@ No more moves. Rotate/zoom to inspect the final board.`;
   return {
     showHelp,
     hideHelp,
+    showConfirm,
     showConfirmReset,
     hideConfirmReset,
     showOverlay,
