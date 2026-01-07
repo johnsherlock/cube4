@@ -7,6 +7,7 @@ export function createOverlayManager({
   const {
     helpOverlay,
     helpPrimaryBtn,
+    demoBtn,
     settingsOverlay,
     confirmOverlay,
     confirmYesBtn,
@@ -34,6 +35,7 @@ export function createOverlayManager({
       helpPrimaryBtn.textContent = (mode === "welcome") ? "Start playing" : "Continue";
       helpPrimaryBtn?.focus?.();
     }
+    if (demoBtn) demoBtn.style.display = (mode === "welcome") ? "inline-flex" : "none";
   }
 
   function hideHelp() {

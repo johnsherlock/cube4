@@ -36,4 +36,5 @@ export const state = {
   userHasMovedCamera: false,
   initialFitDone: false,
   hasCompletedWelcome: false,
+  demoMode: false,
 };

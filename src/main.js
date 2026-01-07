@@ -27,6 +27,7 @@ const mobileMenu = document.getElementById("mobileMenu");
 
 const helpOverlay = document.getElementById("helpOverlay");
 const helpPrimaryBtn = document.getElementById("helpPrimaryBtn");
+const demoBtn = document.getElementById("demoBtn");
 
 const settingsOverlay = document.getElementById("settingsOverlay");
 const playersSel = document.getElementById("playersSel");
@@ -49,6 +50,7 @@ const cpuLevelText = document.getElementById("cpuLevelText");
 const diffDownBtn = document.getElementById("diffDownBtn");
 const diffKeepBtn = document.getElementById("diffKeepBtn");
 const diffUpBtn = document.getElementById("diffUpBtn");
+const exitDemoBtn = document.getElementById("exitDemoBtn");
 
 const isCoarsePointer = matchMedia('(pointer: coarse)').matches;
 
@@ -129,7 +131,7 @@ function isOnePlayerMode() {
 }
 
 function isAITurn() {
-  return (state.playersCount === 1) && (state.currentPlayer === aiPlayer);
+  return state.demoMode || ((state.playersCount === 1) && (state.currentPlayer === aiPlayer));
 }
 
 function getScoreLine() {
@@ -194,6 +196,7 @@ const overlays = createOverlayManager({
   elements: {
     helpOverlay,
     helpPrimaryBtn,
+    demoBtn,
     settingsOverlay,
     confirmOverlay,
     confirmYesBtn,
@@ -229,6 +232,60 @@ mobile = initMobileMenu({
   onHelp: () => overlays.showHelp("rules"),
 });
 
+let demoSnapshot = null;
+
+function setDemoUI(on) {
+  if (exitDemoBtn) exitDemoBtn.style.display = on ? "inline-flex" : "none";
+}
+
+function startDemoMode() {
+  demoSnapshot = {
+    playersCount: state.playersCount,
+    aiLevel: state.aiLevel,
+    firstMovePolicy: state.firstMovePolicy,
+    matchStyle: state.matchStyle,
+    winsP1: state.winsP1,
+    winsP2: state.winsP2,
+    lastWinner: state.lastWinner,
+    lastStartingPlayer: state.lastStartingPlayer,
+    hasCompletedWelcome: state.hasCompletedWelcome,
+  };
+
+  state.demoMode = true;
+  state.playersCount = 2;
+  state.winsP1 = 0;
+  state.winsP2 = 0;
+  state.lastWinner = null;
+  state.lastStartingPlayer = null;
+  state.hasCompletedWelcome = false;
+  updateScoreUI();
+  setDemoUI(true);
+  overlays.hideHelp();
+  resetBoardOnly();
+}
+
+function exitDemoMode() {
+  state.demoMode = false;
+  setDemoUI(false);
+
+  if (demoSnapshot) {
+    state.playersCount = demoSnapshot.playersCount;
+    state.aiLevel = demoSnapshot.aiLevel;
+    state.firstMovePolicy = demoSnapshot.firstMovePolicy;
+    state.matchStyle = demoSnapshot.matchStyle;
+    state.winsP1 = demoSnapshot.winsP1;
+    state.winsP2 = demoSnapshot.winsP2;
+    state.lastWinner = demoSnapshot.lastWinner;
+    state.lastStartingPlayer = demoSnapshot.lastStartingPlayer;
+    state.hasCompletedWelcome = demoSnapshot.hasCompletedWelcome;
+    demoSnapshot = null;
+  }
+
+  updateScoreUI();
+  resetBoardOnly();
+  overlays.showHelp("welcome");
+}
+
 function resetBoardOnly() {
   setAutoSpin(false);
   mobile.syncMobileMenuVisibility();
@@ -253,7 +310,7 @@ function resetBoardOnly() {
 
   mobile.syncMobileMenuVisibility();
 
-  savePersisted();
+  if (!state.demoMode) savePersisted();
 
   state.userHasMovedCamera = false;
   state.initialFitDone = false;
@@ -265,8 +322,14 @@ function resetBoardOnly() {
 
 function resetMatch() {
   setAutoSpin(false);
-  wipeScoreboard();
-  updateScoreUI();
+  if (!state.demoMode) {
+    wipeScoreboard();
+    updateScoreUI();
+  } else {
+    state.winsP1 = 0;
+    state.winsP2 = 0;
+    updateScoreUI();
+  }
   resetBoardOnly();
 }
 
@@ -305,7 +368,7 @@ function finishWin(player, winning4) {
   if (player === P1) state.winsP1++; else state.winsP2++;
   state.lastWinner = player;
   updateScoreUI();
-  savePersisted();
+  if (!state.demoMode) savePersisted();
 
   overlays.showOverlay("win", player);
 
@@ -315,33 +378,39 @@ function finishWin(player, winning4) {
 let aiThinking = false;
 
 function maybeAIMove() {
-  if (state.playersCount !== 1) return;
   if (state.gameOver) return;
-  if (state.currentPlayer !== aiPlayer) return;
+  if (!state.demoMode && state.playersCount !== 1) return;
+  if (!state.demoMode && state.currentPlayer !== aiPlayer) return;
 
   aiThinking = true;
   const thinkDelayMs = 1000 + Math.floor(Math.random() * 2000);
 
   setTimeout(() => {
-    if (state.playersCount !== 1 || state.gameOver || state.currentPlayer !== aiPlayer) {
+    if (!state.demoMode && (state.playersCount !== 1 || state.currentPlayer !== aiPlayer)) {
+      aiThinking = false;
+      return;
+    }
+    if (state.gameOver) {
       aiThinking = false;
       return;
     }
 
-    const mv = chooseAIMove();
+    const aiSide = state.demoMode ? state.currentPlayer : aiPlayer;
+    const mv = chooseAIMove(aiSide);
     if (!mv) { aiThinking = false; return; }
     const [x, y, z] = mv;
     if (state.board[x][y][z] !== EMPTY) { aiThinking = false; return; }
 
-    const player = aiPlayer;
-    const preThreats = immediateWinningThreats(P1);
+    const player = aiSide;
+    const opponent = (player === P1) ? P2 : P1;
+    const preThreats = immediateWinningThreats(opponent);
 
     const cpuPiece = placePiece(x, y, z, player);
     animatePieceSpawn(cpuPiece, player, playerHex);
     nudgeCameraFocusTo(controls, cpuPiece.position);
 
     const blockedLine = preThreats.get(keyOf(x, y, z));
-    if (blockedLine) setTimeout(() => pulseBlockedLine(blockedLine, P1, piecesByKey), 90);
+    if (blockedLine) setTimeout(() => pulseBlockedLine(blockedLine, opponent, piecesByKey), 90);
 
     state.lastMove = { x, y, z, player };
     undoBtn.disabled = true;
@@ -362,11 +431,15 @@ function maybeAIMove() {
       return;
     }
 
-    state.currentPlayer = P1;
+    state.currentPlayer = (state.currentPlayer === P1) ? P2 : P1;
     updateStatusForPlayer(state.currentPlayer);
     updateFrameForCurrentPlayer();
 
     aiThinking = false;
+
+    if (state.demoMode) {
+      maybeAIMove();
+    }
   }, thinkDelayMs);
 }
 
@@ -398,6 +471,14 @@ helpBtn.addEventListener("click", () => {
 
 settingsBtn.addEventListener("click", () => {
   settings.showSettings();
+});
+
+demoBtn?.addEventListener?.("click", () => {
+  startDemoMode();
+});
+
+exitDemoBtn?.addEventListener?.("click", () => {
+  exitDemoMode();
 });
 
 window.addEventListener("keydown", (ev) => {

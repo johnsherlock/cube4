@@ -100,7 +100,7 @@ function negamax(depth, alpha, beta, player, rootPlayer) {
   return best;
 }
 
-export function chooseAIMove() {
+export function chooseAIMove(aiPlayer) {
   const board = state.board;
   const moves = legalMoves(board);
   if (moves.length === 0) return null;
@@ -120,13 +120,15 @@ export function chooseAIMove() {
   const pWin = Math.max(0.20, cfg.pSeeWin - busy * 0.18);
   const pBlock = Math.max(0.18, cfg.pSeeBlock - busy * 0.22);
 
+  const opponent = (aiPlayer === P1) ? P2 : P1;
+
   if (Math.random() < pWin) {
-    const winNow = tryImmediate(P2);
+    const winNow = tryImmediate(aiPlayer);
     if (winNow) return winNow;
   }
 
   if (Math.random() < pBlock) {
-    const block = tryImmediate(P1);
+    const block = tryImmediate(opponent);
     if (block) return block;
   }
 
@@ -137,13 +139,13 @@ export function chooseAIMove() {
   let bestScore = -Infinity;
 
   for (const [x, y, z] of sample) {
-    board[x][y][z] = P2;
+    board[x][y][z] = aiPlayer;
 
     let s;
     if (cfg.useMinimax && cfg.depth > 0) {
-      s = -negamax(cfg.depth - 1, -Infinity, Infinity, P1, P2);
+      s = -negamax(cfg.depth - 1, -Infinity, Infinity, opponent, aiPlayer);
     } else {
-      s = heuristicScore(P2);
+      s = heuristicScore(aiPlayer);
     }
 
     s += (Math.random() - 0.5) * cfg.noise;
