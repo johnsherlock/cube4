@@ -79,6 +79,10 @@ const controls = createControls({
   },
 });
 
+controls.addEventListener("end", () => {
+  if (state.gameOver) setAutoSpin(true);
+});
+
 const { fitCameraToCube } = createCameraFitter({ camera, controls, frame: sceneBundle.frame });
 const setAutoSpin = (on) => setAutoSpinControl(controls, on);
 setAutoSpin(false);
