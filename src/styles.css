@@ -9,6 +9,8 @@ body {
   font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
 }
 
+*, *::before, *::after { box-sizing: border-box; }
+
 /* Let OrbitControls own touch gestures on mobile */
 canvas { touch-action: none; }
 
@@ -61,6 +63,7 @@ input.pill {
   color: #fff;
   width: 100%;
 }
+select.pill, input.pill { max-width: 100%; }
 select.pill:focus, button.pill:focus {
   outline: 2px solid rgba(255,255,255,0.18);
   outline-offset: 2px;
@@ -165,6 +168,7 @@ button.pill.icon {
   letter-spacing: 0.2px;
   font-size: 13px;
 }
+.row select, .row input { min-width: 0; }
 
 @media (max-width: 520px) {
   .row { grid-template-columns: 1fr; }

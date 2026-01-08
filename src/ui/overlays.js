@@ -137,10 +137,6 @@ No more moves. Rotate/zoom to inspect the final board.`;
     if (ev.target === confirmOverlay) hideConfirmReset();
   });
 
-  settingsOverlay?.addEventListener?.("pointerdown", (ev) => {
-    if (ev.target === settingsOverlay) helpers.hideSettings();
-  });
-
   return {
     showHelp,
     hideHelp,

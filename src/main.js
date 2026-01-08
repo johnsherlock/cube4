@@ -33,11 +33,13 @@ const settingsOverlay = document.getElementById("settingsOverlay");
 const playersSel = document.getElementById("playersSel");
 const player1Name = document.getElementById("player1Name");
 const player2Name = document.getElementById("player2Name");
+const player2Row = document.getElementById("player2Row");
 const difficultySel = document.getElementById("difficultySel");
 const difficultyRow = document.getElementById("difficultyRow");
 const firstMoveSel = document.getElementById("firstMoveSel");
 const matchSel = document.getElementById("matchSel");
 const closeSettingsBtn = document.getElementById("closeSettingsBtn");
+const cancelSettingsBtn = document.getElementById("cancelSettingsBtn");
 
 const overlay = document.getElementById("overlay");
 const overlayTitle = document.getElementById("overlayTitle");
@@ -191,16 +193,23 @@ const settings = initSettings({
     playersSel,
     player1Name,
     player2Name,
+    player2Row,
     difficultySel,
     difficultyRow,
     firstMoveSel,
     matchSel,
     closeSettingsBtn,
+    cancelSettingsBtn,
   },
   syncMobileMenuVisibility,
   resetBoardOnly,
   updateScoreUI,
   confirmApply: (opts) => confirmApply?.(opts),
+  onCancel: () => {
+    if (!state.hasCompletedWelcome) {
+      overlays.showHelp("welcome");
+    }
+  },
 });
 
 const overlays = createOverlayManager({
@@ -269,6 +278,8 @@ function startDemoMode() {
 
   state.demoMode = true;
   state.playersCount = 2;
+  state.player1Name = "CPU 1";
+  state.player2Name = "CPU 2";
   state.winsP1 = 0;
   state.winsP2 = 0;
   state.lastWinner = null;
