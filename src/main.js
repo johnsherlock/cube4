@@ -31,6 +31,8 @@ const demoBtn = document.getElementById("demoBtn");
 
 const settingsOverlay = document.getElementById("settingsOverlay");
 const playersSel = document.getElementById("playersSel");
+const player1Name = document.getElementById("player1Name");
+const player2Name = document.getElementById("player2Name");
 const difficultySel = document.getElementById("difficultySel");
 const difficultyRow = document.getElementById("difficultyRow");
 const firstMoveSel = document.getElementById("firstMoveSel");
@@ -102,14 +104,21 @@ setVH();
 updateTierVisibility();
 
 function playerHex(player) { return player === P1 ? 0xff4b4b : 0x4aa0ff; }
-function playerName(player) { return player === P1 ? "Red" : "Blue"; }
+function playerName(player) { return player === P1 ? state.player1Name : state.player2Name; }
 
 function updateFrameForCurrentPlayer() {
   frameMat.color.setHex(playerHex(state.currentPlayer));
 }
 
 function updateScoreUI() {
-  scoreTextEl.textContent = `Red ${state.winsP1} - ${state.winsP2} Blue`;
+  const left = document.createElement("span");
+  left.className = "scoreSide p1";
+  left.textContent = `${state.player1Name} ${state.winsP1}`;
+  const mid = document.createTextNode(" - ");
+  const right = document.createElement("span");
+  right.className = "scoreSide p2";
+  right.textContent = `${state.winsP2} ${state.player2Name}`;
+  scoreTextEl.replaceChildren(left, mid, right);
   if (difficultyValueEl) difficultyValueEl.textContent = String(state.aiLevel || 1);
 }
 
@@ -120,11 +129,7 @@ function setPillAccentForPlayer(el, player, alpha = 0.28, borderAlpha = 0.45) {
 }
 
 function updateStatusForPlayer(player) {
-  if (state.playersCount === 1) {
-    statusEl.textContent = (player === P1) ? "Player 1: Red" : "CPU: Blue";
-  } else {
-    statusEl.textContent = `Current Player: ${playerName(player)}`;
-  }
+  statusEl.textContent = `Current move: ${playerName(player)}`;
   setPillAccentForPlayer(statusPill, player, 0.30, 0.55);
 }
 
@@ -184,6 +189,8 @@ const settings = initSettings({
   elements: {
     settingsOverlay,
     playersSel,
+    player1Name,
+    player2Name,
     difficultySel,
     difficultyRow,
     firstMoveSel,
@@ -251,6 +258,8 @@ function startDemoMode() {
     aiLevel: state.aiLevel,
     firstMovePolicy: state.firstMovePolicy,
     matchStyle: state.matchStyle,
+    player1Name: state.player1Name,
+    player2Name: state.player2Name,
     winsP1: state.winsP1,
     winsP2: state.winsP2,
     lastWinner: state.lastWinner,
@@ -280,6 +289,8 @@ function exitDemoMode() {
     state.aiLevel = demoSnapshot.aiLevel;
     state.firstMovePolicy = demoSnapshot.firstMovePolicy;
     state.matchStyle = demoSnapshot.matchStyle;
+    state.player1Name = demoSnapshot.player1Name;
+    state.player2Name = demoSnapshot.player2Name;
     state.winsP1 = demoSnapshot.winsP1;
     state.winsP2 = demoSnapshot.winsP2;
     state.lastWinner = demoSnapshot.lastWinner;

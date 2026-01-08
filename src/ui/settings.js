@@ -11,6 +11,8 @@ export function initSettings({
   const {
     settingsOverlay,
     playersSel,
+    player1Name,
+    player2Name,
     difficultySel,
     difficultyRow,
     firstMoveSel,
@@ -23,6 +25,8 @@ export function initSettings({
     difficultySel.value = String(state.aiLevel);
     firstMoveSel.value = state.firstMovePolicy;
     matchSel.value = state.matchStyle;
+    if (player1Name) player1Name.value = state.player1Name || "Player 1";
+    if (player2Name) player2Name.value = state.player2Name || "Player 2";
     difficultyRow.style.display = (state.playersCount === 1) ? "grid" : "none";
   }
 
@@ -40,25 +44,36 @@ export function initSettings({
   }
 
   function readSettingsFromUI() {
+    const p1Default = "Player 1";
+    const p2Default = "Player 2";
+    const p1 = (player1Name?.value || "").trim() || p1Default;
+    const p2 = (player2Name?.value || "").trim() || p2Default;
     return {
       playersCount: Number(playersSel.value) === 1 ? 1 : 2,
       aiLevel: clampInt(Number(difficultySel.value), 1, 5),
       firstMovePolicy: firstMoveSel.value,
       matchStyle: matchSel.value,
+      player1Name: p1,
+      player2Name: p2,
     };
   }
 
   function applySettings(next, { isInitial = false } = {}) {
     const prevPlayersCount = state.playersCount;
     const prevAiLevel = state.aiLevel;
+    const prevName1 = state.player1Name;
+    const prevName2 = state.player2Name;
 
     state.playersCount = next.playersCount;
     state.aiLevel = next.aiLevel;
     state.firstMovePolicy = next.firstMovePolicy;
     state.matchStyle = next.matchStyle;
+    state.player1Name = next.player1Name;
+    state.player2Name = next.player2Name;
 
     const playersChanged = (state.playersCount !== prevPlayersCount);
     const levelChanged = (state.playersCount === 1) && (state.aiLevel !== prevAiLevel);
+    const namesChanged = (state.player1Name !== prevName1) || (state.player2Name !== prevName2);
 
     difficultyRow.style.display = (state.playersCount === 1) ? "grid" : "none";
 
@@ -66,6 +81,7 @@ export function initSettings({
       wipeScoreboard();
       updateScoreUI();
     }
+    if (namesChanged) updateScoreUI();
 
     savePersisted();
     syncMobileMenuVisibility();
@@ -85,7 +101,9 @@ export function initSettings({
       next.playersCount !== state.playersCount ||
       next.aiLevel !== state.aiLevel ||
       next.firstMovePolicy !== state.firstMovePolicy ||
-      next.matchStyle !== state.matchStyle
+      next.matchStyle !== state.matchStyle ||
+      next.player1Name !== state.player1Name ||
+      next.player2Name !== state.player2Name
     );
 
     const doApply = () => {

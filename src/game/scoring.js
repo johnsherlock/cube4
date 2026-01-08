@@ -11,6 +11,8 @@ export function loadPersisted() {
       if (Number.isFinite(Number(s.aiLevel))) state.aiLevel = Math.max(1, Math.min(5, Number(s.aiLevel)));
       if (s.firstMovePolicy) state.firstMovePolicy = s.firstMovePolicy;
       if (s.matchStyle) state.matchStyle = s.matchStyle;
+      if (typeof s.player1Name === "string") state.player1Name = s.player1Name;
+      if (typeof s.player2Name === "string") state.player2Name = s.player2Name;
       if (s.lastWinner === P1 || s.lastWinner === P2) state.lastWinner = s.lastWinner;
       if (s.lastStartingPlayer === P1 || s.lastStartingPlayer === P2) state.lastStartingPlayer = s.lastStartingPlayer;
     }
@@ -32,6 +34,8 @@ export function savePersisted() {
       aiLevel: state.aiLevel,
       firstMovePolicy: state.firstMovePolicy,
       matchStyle: state.matchStyle,
+      player1Name: state.player1Name,
+      player2Name: state.player2Name,
       lastWinner: state.lastWinner,
       lastStartingPlayer: state.lastStartingPlayer,
     }));

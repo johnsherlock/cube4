@@ -55,6 +55,12 @@ select.pill {
   background-size: 6px 6px, 6px 6px;
   background-repeat: no-repeat;
 }
+input.pill {
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(20, 24, 34, 0.78);
+  color: #fff;
+  width: 100%;
+}
 select.pill:focus, button.pill:focus {
   outline: 2px solid rgba(255,255,255,0.18);
   outline-offset: 2px;
@@ -268,6 +274,8 @@ button.pill.icon {
   opacity: 0.95;
 }
 #score .lbl { opacity: 0.8; font-weight: 800; margin-right: 8px; }
+#score .scoreSide.p1 { color: #ff4b4b; }
+#score .scoreSide.p2 { color: #4aa0ff; }
 
 /* Mobile layout: stack status + score, replace buttons with a single dropdown */
 #mobileMenu { display: none; }

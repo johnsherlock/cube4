@@ -31,6 +31,8 @@ export const state = {
   aiLevel: 1,
   firstMovePolicy: "alternate",
   matchStyle: "bo3",
+  player1Name: "Player 1",
+  player2Name: "Player 2",
   selectedLevelZ: null,
   aiThinking: false,
   userHasMovedCamera: false,
