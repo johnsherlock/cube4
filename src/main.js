@@ -34,6 +34,9 @@ const playersSel = document.getElementById("playersSel");
 const player1Name = document.getElementById("player1Name");
 const player2Name = document.getElementById("player2Name");
 const player2Row = document.getElementById("player2Row");
+const player1Color = document.getElementById("player1Color");
+const player2Color = document.getElementById("player2Color");
+const player2Label = document.getElementById("player2Label");
 const difficultySel = document.getElementById("difficultySel");
 const difficultyRow = document.getElementById("difficultyRow");
 const firstMoveSel = document.getElementById("firstMoveSel");
@@ -105,22 +108,42 @@ setVH();
 
 updateTierVisibility();
 
-function playerHex(player) { return player === P1 ? 0xff4b4b : 0x4aa0ff; }
+function playerColor(player) { return player === P1 ? state.player1Color : state.player2Color; }
+function playerHex(player) { return parseInt(playerColor(player).replace("#", ""), 16); }
 function playerName(player) { return player === P1 ? state.player1Name : state.player2Name; }
 
 function updateFrameForCurrentPlayer() {
   frameMat.color.setHex(playerHex(state.currentPlayer));
 }
 
+function refreshPlayerColors() {
+  updateScoreUI();
+  updateStatusForPlayer(state.currentPlayer);
+  updateFrameForCurrentPlayer();
+  for (const piece of piecesByKey.values()) {
+    const p = piece.userData?.player;
+    if (!p || !piece.material?.color) continue;
+    piece.material.color.setHex(playerHex(p));
+  }
+}
+
 function updateScoreUI() {
-  const left = document.createElement("span");
-  left.className = "scoreSide p1";
-  left.textContent = `${state.player1Name} ${state.winsP1}`;
+  const leftName = document.createElement("span");
+  leftName.className = "scoreName";
+  leftName.style.color = playerColor(P1);
+  leftName.textContent = state.player1Name;
+  const leftScore = document.createElement("span");
+  leftScore.className = "scoreValue";
+  leftScore.textContent = String(state.winsP1);
   const mid = document.createTextNode(" - ");
-  const right = document.createElement("span");
-  right.className = "scoreSide p2";
-  right.textContent = `${state.winsP2} ${state.player2Name}`;
-  scoreTextEl.replaceChildren(left, mid, right);
+  const rightScore = document.createElement("span");
+  rightScore.className = "scoreValue";
+  rightScore.textContent = String(state.winsP2);
+  const rightName = document.createElement("span");
+  rightName.className = "scoreName";
+  rightName.style.color = playerColor(P2);
+  rightName.textContent = state.player2Name;
+  scoreTextEl.replaceChildren(leftName, document.createTextNode(" "), leftScore, mid, rightScore, document.createTextNode(" "), rightName);
   if (difficultyValueEl) difficultyValueEl.textContent = String(state.aiLevel || 1);
 }
 
@@ -144,7 +167,7 @@ function isAITurn() {
 }
 
 function getScoreLine() {
-  return `Match score: Red ${state.winsP1} - ${state.winsP2} Blue`;
+  return `Match score: ${state.player1Name} ${state.winsP1} - ${state.winsP2} ${state.player2Name}`;
 }
 
 function matchStyleTargetWins() {
@@ -194,6 +217,9 @@ const settings = initSettings({
     player1Name,
     player2Name,
     player2Row,
+    player2Label,
+    player1Color,
+    player2Color,
     difficultySel,
     difficultyRow,
     firstMoveSel,
@@ -210,6 +236,7 @@ const settings = initSettings({
       overlays.showHelp("welcome");
     }
   },
+  onColorsChanged: () => refreshPlayerColors(),
 });
 
 const overlays = createOverlayManager({
@@ -241,6 +268,7 @@ const overlays = createOverlayManager({
     isOnePlayerMode,
     matchStyleLabel,
     playerName,
+    playerColor,
     getScoreLine,
   },
   onConfirmReset: () => resetMatch(),
@@ -407,6 +435,7 @@ function finishWin(player, winning4) {
 let aiThinking = false;
 
 function maybeAIMove() {
+  if (!state.hasCompletedWelcome && !state.demoMode) return;
   if (state.gameOver) return;
   if (!state.demoMode && state.playersCount !== 1) return;
   if (!state.demoMode && state.currentPlayer !== aiPlayer) return;
@@ -434,7 +463,7 @@ function maybeAIMove() {
     const opponent = (player === P1) ? P2 : P1;
     const preThreats = immediateWinningThreats(opponent);
 
-    const cpuPiece = placePiece(x, y, z, player);
+    const cpuPiece = placePiece(x, y, z, player, playerHex(player));
     animatePieceSpawn(cpuPiece, player, playerHex);
     nudgeCameraFocusTo(controls, cpuPiece.position);
 
@@ -644,7 +673,7 @@ renderer.domElement.addEventListener("pointerup", (ev) => {
   const opponent = (player === P1) ? P2 : P1;
   const preThreats = immediateWinningThreats(opponent);
 
-  const placedPiece = placePiece(x, y, z, player);
+  const placedPiece = placePiece(x, y, z, player, playerHex(player));
   animatePieceSpawn(placedPiece, player, playerHex);
   hapticTap();
 
@@ -721,6 +750,7 @@ function tick() {
 tick();
 
 loadPersisted();
+if (state.playersCount === 1) state.player2Name = "CPU";
 updateScoreUI();
 settings.syncSettingsUI();
 mobile.syncMobileMenuVisibility();
@@ -790,3 +820,4 @@ state.currentPlayer = chooseStartingPlayer();
 state.lastStartingPlayer = state.currentPlayer;
 updateStatusForPlayer(state.currentPlayer);
 updateFrameForCurrentPlayer();
+maybeAIMove();

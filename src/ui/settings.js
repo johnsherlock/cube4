@@ -8,6 +8,7 @@ export function initSettings({
   updateScoreUI,
   confirmApply,
   onCancel,
+  onColorsChanged,
 }) {
   const {
     settingsOverlay,
@@ -15,6 +16,9 @@ export function initSettings({
     player1Name,
     player2Name,
     player2Row,
+    player2Label,
+    player1Color,
+    player2Color,
     difficultySel,
     difficultyRow,
     firstMoveSel,
@@ -23,8 +27,39 @@ export function initSettings({
     cancelSettingsBtn,
   } = elements;
 
+  const COLOR_SWATCHES = [
+    "#ef4444",
+    "#3b82f6",
+    "#22c55e",
+    "#f97316",
+    "#facc15",
+    "#a855f7",
+    "#ec4899",
+    "#14b8a6",
+  ];
+
+  let localP1Color = state.player1Color;
+  let localP2Color = state.player2Color;
+
   function normalizeName(value, fallback) {
     return (value || "").trim() || fallback;
+  }
+
+  function renderSwatches(container, selected, other, onSelect) {
+    if (!container) return;
+    container.innerHTML = "";
+    for (const color of COLOR_SWATCHES) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "swatch";
+      btn.style.background = color;
+      btn.setAttribute("aria-label", `Pick ${color}`);
+      const isBlocked = color === other;
+      if (color === selected) btn.classList.add("selected");
+      if (isBlocked && color !== selected) btn.disabled = true;
+      btn.addEventListener("click", () => onSelect(color));
+      container.appendChild(btn);
+    }
   }
 
   function isNameValid() {
@@ -42,6 +77,28 @@ export function initSettings({
     if (closeSettingsBtn) closeSettingsBtn.disabled = !ok;
   }
 
+  function syncSwatches() {
+    renderSwatches(player1Color, localP1Color, localP2Color, (color) => {
+      localP1Color = color;
+      syncSwatches();
+    });
+    renderSwatches(player2Color, localP2Color, localP1Color, (color) => {
+      localP2Color = color;
+      syncSwatches();
+    });
+  }
+
+  function syncPlayer2Visibility() {
+    const isCpu = (Number(playersSel.value) === 1);
+    if (player2Label) player2Label.textContent = "Player 2";
+    if (player2Row) player2Row.style.display = "grid";
+    if (player2Name) {
+      player2Name.style.display = "";
+      player2Name.readOnly = isCpu;
+      player2Name.value = isCpu ? "CPU" : (player2Name.value || "Player 2");
+    }
+  }
+
   function syncSettingsUI() {
     playersSel.value = String(state.playersCount);
     difficultySel.value = String(state.aiLevel);
@@ -49,13 +106,17 @@ export function initSettings({
     matchSel.value = state.matchStyle;
     if (player1Name) player1Name.value = state.player1Name || "Player 1";
     if (player2Name) {
-      player2Name.value = state.player2Name || "Player 2";
+      const fallback = (state.playersCount === 1) ? "CPU" : "Player 2";
+      const next = state.player2Name || fallback;
+      player2Name.value = (state.playersCount === 2 && next === "CPU") ? "Player 2" : next;
     }
     difficultyRow.style.display = (state.playersCount === 1) ? "grid" : "none";
-    if (player2Row) player2Row.style.display = (state.playersCount === 1) ? "none" : "grid";
-    if (player2Name) player2Name.disabled = (state.playersCount === 1);
-    if (state.playersCount === 1 && player2Name) player2Name.value = "CPU";
+    syncPlayer2Visibility();
     updateStartButtonState();
+
+    localP1Color = state.player1Color;
+    localP2Color = state.player2Color;
+    syncSwatches();
   }
 
   function showSettings() {
@@ -87,6 +148,8 @@ export function initSettings({
       matchStyle: matchSel.value,
       player1Name: p1,
       player2Name: p2,
+      player1Color: localP1Color,
+      player2Color: localP2Color,
     };
   }
 
@@ -95,6 +158,10 @@ export function initSettings({
     const prevAiLevel = state.aiLevel;
     const prevName1 = state.player1Name;
     const prevName2 = state.player2Name;
+    const prevColor1 = state.player1Color;
+    const prevColor2 = state.player2Color;
+    const prevFirstMove = state.firstMovePolicy;
+    const prevMatchStyle = state.matchStyle;
 
     state.playersCount = next.playersCount;
     state.aiLevel = next.aiLevel;
@@ -102,10 +169,16 @@ export function initSettings({
     state.matchStyle = next.matchStyle;
     state.player1Name = next.player1Name;
     state.player2Name = next.player2Name;
+    state.player1Color = next.player1Color;
+    state.player2Color = next.player2Color;
 
     const playersChanged = (state.playersCount !== prevPlayersCount);
     const levelChanged = (state.playersCount === 1) && (state.aiLevel !== prevAiLevel);
     const namesChanged = (state.player1Name !== prevName1) || (state.player2Name !== prevName2);
+    const colorsChanged = (state.player1Color !== prevColor1) || (state.player2Color !== prevColor2);
+    const firstMoveChanged = (state.firstMovePolicy !== prevFirstMove);
+    const matchStyleChanged = (state.matchStyle !== prevMatchStyle);
+    const resetRequired = playersChanged || levelChanged || firstMoveChanged || matchStyleChanged;
 
     difficultyRow.style.display = (state.playersCount === 1) ? "grid" : "none";
 
@@ -113,21 +186,27 @@ export function initSettings({
       wipeScoreboard();
       updateScoreUI();
     }
-    if (namesChanged) updateScoreUI();
+    if (namesChanged || colorsChanged) updateScoreUI();
+    if (colorsChanged && typeof onColorsChanged === "function") onColorsChanged();
+
+    if (isInitial) state.hasCompletedWelcome = true;
 
     savePersisted();
     syncMobileMenuVisibility();
-    resetBoardOnly();
-
-    if (isInitial) state.hasCompletedWelcome = true;
+    if (resetRequired || isInitial) {
+      resetBoardOnly();
+    }
   }
 
   playersSel.addEventListener("change", () => {
     const next = Number(playersSel.value);
     difficultyRow.style.display = (next === 1) ? "grid" : "none";
-    if (player2Row) player2Row.style.display = (next === 1) ? "none" : "grid";
-    if (player2Name) player2Name.disabled = (next === 1);
-    if (next === 1 && player2Name) player2Name.value = "CPU";
+    if (next === 2 && player2Name) {
+      const current = (player2Name.value || "").trim();
+      if (!current || current === "CPU") player2Name.value = "Player 2";
+    }
+    syncPlayer2Visibility();
+    syncSwatches();
     updateStartButtonState();
   });
 
@@ -135,13 +214,17 @@ export function initSettings({
     updateStartButtonState();
     if (!isNameValid()) return;
     const next = readSettingsFromUI();
-    const hasChanges = (
+    const resetRequired = (
       next.playersCount !== state.playersCount ||
       next.aiLevel !== state.aiLevel ||
       next.firstMovePolicy !== state.firstMovePolicy ||
-      next.matchStyle !== state.matchStyle ||
+      next.matchStyle !== state.matchStyle
+    );
+    const hasChanges = resetRequired || (
       next.player1Name !== state.player1Name ||
-      next.player2Name !== state.player2Name
+      next.player2Name !== state.player2Name ||
+      next.player1Color !== state.player1Color ||
+      next.player2Color !== state.player2Color
     );
 
     const doApply = () => {
@@ -150,7 +233,7 @@ export function initSettings({
       if (!state.hasCompletedWelcome) state.hasCompletedWelcome = true;
     };
 
-    if (hasChanges && typeof confirmApply === "function") {
+    if (resetRequired && typeof confirmApply === "function") {
       confirmApply({
         title: "Apply match options?",
         body: "Changing match options will reset the current game.",

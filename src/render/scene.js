@@ -171,7 +171,7 @@ export function createScene({ wrap, state }) {
     for (const p of pickByKey.values()) p.visible = false;
   }
 
-  function placePiece(x, y, z, player) {
+  function placePiece(x, y, z, player, colorHex) {
     state.board[x][y][z] = player;
 
     const marker = markersByKey.get(keyOf(x, y, z));
@@ -182,7 +182,7 @@ export function createScene({ wrap, state }) {
 
     const geom = new THREE.CylinderGeometry(0.34, 0.34, 0.14, 28);
     const mat = new THREE.MeshStandardMaterial({
-      color: player === 1 ? 0xff2b2b : 0x2f7dff,
+      color: colorHex,
       emissive: 0x000000,
       emissiveIntensity: 0.0,
       roughness: 0.35,

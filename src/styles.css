@@ -170,6 +170,40 @@ button.pill.icon {
 }
 .row select, .row input { min-width: 0; }
 
+.nameRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  flex-wrap: wrap;
+}
+.nameRow input { flex: 0 0 160px; min-width: 0; }
+
+.swatchGroup {
+  display: inline-flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.swatch {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.4);
+  padding: 0;
+  cursor: pointer;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.35) inset;
+}
+
+.swatch.selected {
+  box-shadow: 0 0 0 2px #ffffff, 0 0 0 1px rgba(0,0,0,0.35) inset;
+}
+
+.swatch:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
 @media (max-width: 520px) {
   .row { grid-template-columns: 1fr; }
 }
@@ -278,8 +312,7 @@ button.pill.icon {
   opacity: 0.95;
 }
 #score .lbl { opacity: 0.8; font-weight: 800; margin-right: 8px; }
-#score .scoreSide.p1 { color: #ff4b4b; }
-#score .scoreSide.p2 { color: #4aa0ff; }
+#score .scoreValue { color: #ffffff; }
 
 /* Mobile layout: stack status + score, replace buttons with a single dropdown */
 #mobileMenu { display: none; }

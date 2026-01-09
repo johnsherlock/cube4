@@ -33,6 +33,8 @@ export const state = {
   matchStyle: "bo3",
   player1Name: "Player 1",
   player2Name: "Player 2",
+  player1Color: "#ff4b4b",
+  player2Color: "#4aa0ff",
   selectedLevelZ: null,
   aiThinking: false,
   userHasMovedCamera: false,

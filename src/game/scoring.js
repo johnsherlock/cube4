@@ -13,6 +13,8 @@ export function loadPersisted() {
       if (s.matchStyle) state.matchStyle = s.matchStyle;
       if (typeof s.player1Name === "string") state.player1Name = s.player1Name;
       if (typeof s.player2Name === "string") state.player2Name = s.player2Name;
+      if (typeof s.player1Color === "string") state.player1Color = s.player1Color;
+      if (typeof s.player2Color === "string") state.player2Color = s.player2Color;
       if (s.lastWinner === P1 || s.lastWinner === P2) state.lastWinner = s.lastWinner;
       if (s.lastStartingPlayer === P1 || s.lastStartingPlayer === P2) state.lastStartingPlayer = s.lastStartingPlayer;
     }
@@ -36,6 +38,8 @@ export function savePersisted() {
       matchStyle: state.matchStyle,
       player1Name: state.player1Name,
       player2Name: state.player2Name,
+      player1Color: state.player1Color,
+      player2Color: state.player2Color,
       lastWinner: state.lastWinner,
       lastStartingPlayer: state.lastStartingPlayer,
     }));

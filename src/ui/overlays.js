@@ -92,7 +92,7 @@ export function createOverlayManager({
 
     if (kind === "win") {
       overlayTitle.textContent = `${helpers.playerName(player).toUpperCase()} WINS!`;
-      overlayTitle.style.color = player === 1 ? "#ff4b4b" : "#4aa0ff";
+      overlayTitle.style.color = helpers.playerColor(player);
 
       const scoreLine = helpers.getScoreLine();
       if (matchOver) {

@@ -67,13 +67,19 @@
         </div>
 
         <div class="row">
-          <label for="player1Name">Player 1 name</label>
-          <input class="pill" id="player1Name" type="text" value="Player 1" autocomplete="off" />
+          <label for="player1Name">Player 1</label>
+          <div class="nameRow">
+            <input class="pill" id="player1Name" type="text" value="Player 1" maxlength="10" autocomplete="off" />
+            <div class="swatchGroup" id="player1Color"></div>
+          </div>
         </div>
 
         <div class="row" id="player2Row">
-          <label for="player2Name">Player 2 name</label>
-          <input class="pill" id="player2Name" type="text" value="Player 2" autocomplete="off" />
+          <label for="player2Name" id="player2Label">Player 2</label>
+          <div class="nameRow">
+            <input class="pill" id="player2Name" type="text" value="Player 2" maxlength="10" autocomplete="off" />
+            <div class="swatchGroup" id="player2Color"></div>
+          </div>
         </div>
 
         <div class="row" id="difficultyRow" style="display:none;">
