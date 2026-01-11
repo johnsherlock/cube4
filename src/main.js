@@ -153,7 +153,11 @@ function updateScoreUI() {
   rightName.style.color = playerColor(P2);
   rightName.textContent = state.player2Name;
   scoreTextEl.replaceChildren(leftName, document.createTextNode(" "), leftScore, mid, rightScore, document.createTextNode(" "), rightName);
-  if (difficultyValueEl) difficultyValueEl.textContent = String(state.aiLevel || 1);
+  if (difficultyValueEl) {
+    difficultyValueEl.textContent = String(state.aiLevel || 1);
+    const indicator = difficultyValueEl.closest("#difficultyIndicator");
+    if (indicator) indicator.style.display = (state.playersCount === 1) ? "inline-flex" : "none";
+  }
 }
 
 function setPillAccentForPlayer(el, player, alpha = 0.28, borderAlpha = 0.45) {
