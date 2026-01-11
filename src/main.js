@@ -95,9 +95,19 @@ controls.addEventListener("end", () => {
 });
 
 const { fitCameraToCube } = createCameraFitter({ camera, controls, frame: sceneBundle.frame });
-const setAutoSpin = (on, { speed } = {}) => {
+function autoSpinSpeed(kind) {
+  const isMobile = matchMedia('(pointer: coarse)').matches;
+  if (kind === "demo") return isMobile ? 0.6 : 1.4;
+  return isMobile ? 3.0 : 2.2;
+}
+
+const setAutoSpin = (on, { speed, kind } = {}) => {
   setAutoSpinControl(controls, on);
-  if (typeof speed === "number") controls.autoRotateSpeed = speed;
+  if (on) {
+    controls.autoRotateSpeed = (typeof speed === "number") ? speed : autoSpinSpeed(kind);
+  } else {
+    controls.autoRotateSpeed = 0;
+  }
 };
 setAutoSpin(false);
 
@@ -328,7 +338,7 @@ function startDemoMode() {
   state.hasCompletedWelcome = false;
   updateScoreUI();
   setDemoUI(true);
-  setAutoSpin(true, { speed: 0.6 });
+  setAutoSpin(true, { kind: "demo" });
   overlays.hideHelp();
   resetBoardOnly();
 }
@@ -390,7 +400,7 @@ function resetBoardOnly() {
   fitCameraToCube();
   state.initialFitDone = true;
 
-  if (state.demoMode) setAutoSpin(true, { speed: 0.6 });
+  if (state.demoMode) setAutoSpin(true, { kind: "demo" });
   maybeAIMove();
 }
 
@@ -462,7 +472,7 @@ function finishWin(player, winning4) {
       } else {
         resetBoardOnly();
       }
-    }, 5000);
+    }, 10000);
   }
 }
 

@@ -35,5 +35,4 @@ export function createCameraFitter({ camera, controls, frame }) {
 
 export function setAutoSpin(controls, on) {
   controls.autoRotate = !!on;
-  controls.autoRotateSpeed = on ? 3 : 0;
 }
