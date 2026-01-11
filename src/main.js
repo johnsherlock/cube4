@@ -126,7 +126,13 @@ function refreshPlayerColors() {
   for (const piece of piecesByKey.values()) {
     const p = piece.userData?.player;
     if (!p || !piece.material?.color) continue;
+    if (piece.userData) {
+      piece.userData.baseColorHex = playerHex(p);
+      piece.userData.baseEmissiveHex = 0x000000;
+    }
     piece.material.color.setHex(playerHex(p));
+    if (piece.material.emissive) piece.material.emissive.setHex(0x000000);
+    if ('emissiveIntensity' in piece.material) piece.material.emissiveIntensity = 0.0;
   }
 }
 

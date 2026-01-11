@@ -30,7 +30,11 @@ export function animatePieceSpawn(piece, player, playerHex, { durationMs = 450 }
       requestAnimationFrame(tick);
     } else {
       piece.scale.setScalar(1.0);
-      if (piece.userData) piece.userData.baseScale = 1.0;
+      if (piece.userData) {
+        piece.userData.baseScale = 1.0;
+        piece.userData.baseColorHex = mat?.color?.getHex?.() ?? piece.userData.baseColorHex;
+        piece.userData.baseEmissiveHex = 0x000000;
+      }
       mat.emissiveIntensity = 0.0;
       mat.emissive.setHex(0x000000);
     }
@@ -73,11 +77,15 @@ export function pulseBlockedLine(line4, threatenedPlayer, piecesByKey, { duratio
     if (piece.userData?.player !== threatenedPlayer) continue;
 
     const mat = piece.material;
+    const baseColorHex = piece.userData?.baseColorHex ?? mat?.color?.getHex?.() ?? 0xffffff;
+    const baseEmissiveHex = piece.userData?.baseEmissiveHex ?? 0x000000;
     targets.push({
       piece,
       baseScale: piece.userData?.baseScale ?? 1.0,
-      baseColor: mat?.color?.clone?.() || null,
-      baseEmissive: mat?.emissive?.clone?.() || null,
+      baseColor: new THREE.Color(baseColorHex),
+      baseEmissive: new THREE.Color(baseEmissiveHex),
+      baseColorHex,
+      baseEmissiveHex,
       baseEmissiveIntensity: (mat && 'emissiveIntensity' in mat) ? (mat.emissiveIntensity || 0) : 0,
     });
   }
@@ -119,8 +127,8 @@ export function pulseBlockedLine(line4, threatenedPlayer, piecesByKey, { duratio
       it.piece.scale.setScalar(it.baseScale);
       const mat = it.piece.material;
       if (mat && mat.isMeshStandardMaterial) {
-        if (it.baseColor && mat.color) mat.color.copy(it.baseColor);
-        if (it.baseEmissive && mat.emissive) mat.emissive.copy(it.baseEmissive);
+        if (mat.color) mat.color.setHex(it.baseColorHex);
+        if (mat.emissive) mat.emissive.setHex(it.baseEmissiveHex);
         if ('emissiveIntensity' in mat) mat.emissiveIntensity = it.baseEmissiveIntensity;
       }
     }
@@ -139,11 +147,15 @@ export function startWinPulse(line4, winningPlayer, piecesByKey, { durationMs = 
     if (piece.userData?.player !== winningPlayer) continue;
 
     const mat = piece.material;
+    const baseColorHex = piece.userData?.baseColorHex ?? mat?.color?.getHex?.() ?? 0xffffff;
+    const baseEmissiveHex = piece.userData?.baseEmissiveHex ?? 0x000000;
     targets.push({
       piece,
       baseScale: piece.userData?.baseScale ?? 1.0,
-      baseColor: mat?.color?.clone?.() || null,
-      baseEmissive: mat?.emissive?.clone?.() || null,
+      baseColor: new THREE.Color(baseColorHex),
+      baseEmissive: new THREE.Color(baseEmissiveHex),
+      baseColorHex,
+      baseEmissiveHex,
       baseEmissiveIntensity: (mat && 'emissiveIntensity' in mat) ? (mat.emissiveIntensity || 0) : 0,
     });
   }
@@ -190,8 +202,8 @@ export function startWinPulse(line4, winningPlayer, piecesByKey, { durationMs = 
       it.piece.scale.setScalar(it.baseScale);
       const mat = it.piece.material;
       if (mat && mat.isMeshStandardMaterial) {
-        if (it.baseColor && mat.color) mat.color.copy(it.baseColor);
-        if (it.baseEmissive && mat.emissive) mat.emissive.copy(it.baseEmissive);
+        if (mat.color) mat.color.setHex(it.baseColorHex);
+        if (mat.emissive) mat.emissive.setHex(it.baseEmissiveHex);
         if ('emissiveIntensity' in mat) mat.emissiveIntensity = it.baseEmissiveIntensity;
       }
     }
