@@ -97,7 +97,7 @@ controls.addEventListener("end", () => {
 const { fitCameraToCube } = createCameraFitter({ camera, controls, frame: sceneBundle.frame });
 function autoSpinSpeed(kind) {
   const isMobile = matchMedia('(pointer: coarse)').matches;
-  if (kind === "demo") return isMobile ? 0.6 : 1.4;
+  if (kind === "demo") return isMobile ? 1.8 : 1.4;
   return isMobile ? 3.0 : 2.2;
 }
 
