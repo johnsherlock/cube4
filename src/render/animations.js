@@ -127,3 +127,72 @@ export function pulseBlockedLine(line4, threatenedPlayer, piecesByKey, { duratio
 
   requestAnimationFrame(tick);
 }
+
+export function startWinPulse(line4, winningPlayer, piecesByKey, { durationMs = 1600, scaleMax = 1.10, emissiveMax = 0.55 } = {}) {
+  if (!Array.isArray(line4) || line4.length !== 4) return () => {};
+
+  const targets = [];
+  for (const [x, y, z] of line4) {
+    const piece = piecesByKey.get(keyOf(x, y, z));
+    if (!piece) continue;
+    if (piece.userData?.player !== winningPlayer) continue;
+
+    const mat = piece.material;
+    targets.push({
+      piece,
+      baseScale: piece.scale.x,
+      baseColor: mat?.color?.clone?.() || null,
+      baseEmissive: mat?.emissive?.clone?.() || null,
+      baseEmissiveIntensity: (mat && 'emissiveIntensity' in mat) ? (mat.emissiveIntensity || 0) : 0,
+    });
+  }
+
+  if (targets.length === 0) return () => {};
+
+  let stopped = false;
+  let rafId = 0;
+  const t0 = performance.now();
+
+  const tick = (now) => {
+    if (stopped) return;
+    const t = ((now - t0) % durationMs) / durationMs;
+    const ease = t < 0.5
+      ? 2 * t * t
+      : 1 - Math.pow(-2 * t + 2, 2) / 2;
+    const pulse = Math.sin(Math.PI * ease);
+
+    for (const it of targets) {
+      const s = it.baseScale * (1 + (scaleMax - 1) * pulse);
+      it.piece.scale.setScalar(s);
+
+      const mat = it.piece.material;
+      if (mat && mat.isMeshStandardMaterial) {
+        if (it.baseColor && mat.color) {
+          mat.color.copy(it.baseColor).lerp(new THREE.Color(0xffffff), 0.18 * pulse);
+        }
+        if (it.baseColor && mat.emissive) {
+          mat.emissive.copy(it.baseColor);
+          mat.emissiveIntensity = it.baseEmissiveIntensity + emissiveMax * pulse;
+        }
+      }
+    }
+
+    rafId = requestAnimationFrame(tick);
+  };
+
+  rafId = requestAnimationFrame(tick);
+
+  return () => {
+    stopped = true;
+    if (rafId) cancelAnimationFrame(rafId);
+    for (const it of targets) {
+      it.piece.scale.setScalar(it.baseScale);
+      const mat = it.piece.material;
+      if (mat && mat.isMeshStandardMaterial) {
+        if (it.baseColor && mat.color) mat.color.copy(it.baseColor);
+        if (it.baseEmissive && mat.emissive) mat.emissive.copy(it.baseEmissive);
+        if ('emissiveIntensity' in mat) mat.emissiveIntensity = it.baseEmissiveIntensity;
+      }
+    }
+  };
+}

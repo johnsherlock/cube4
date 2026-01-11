@@ -7,7 +7,7 @@ import { loadPersisted, savePersisted, wipeScoreboard } from "./game/scoring.js"
 import { createScene } from "./render/scene.js";
 import { createControls } from "./render/controls.js";
 import { createCameraFitter, setAutoSpin as setAutoSpinControl } from "./render/camera.js";
-import { animatePieceSpawn, nudgeCameraFocusTo, pulseBlockedLine } from "./render/animations.js";
+import { animatePieceSpawn, nudgeCameraFocusTo, pulseBlockedLine, startWinPulse } from "./render/animations.js";
 import { initSettings } from "./ui/settings.js";
 import { createOverlayManager } from "./ui/overlays.js";
 import { initMobileMenu } from "./ui/mobileMenu.js";
@@ -349,6 +349,7 @@ function resetBoardOnly() {
   state.board = makeEmptyBoard();
   state.gameOver = false;
 
+  clearWinPulse();
   clearPieces();
   resetMarkers();
   clearSelection();
@@ -398,6 +399,7 @@ function undoMove() {
     overlays.hideOverlay();
   }
 
+  clearWinPulse();
   clearWinOutlines();
 
   const last = state.lastMove;
@@ -413,6 +415,7 @@ function undoMove() {
 }
 
 function finishWin(player, winning4) {
+  clearWinPulse();
   clearWinOutlines();
   for (const [wx, wy, wz] of winning4) {
     const piece = piecesByKey.get(keyOf(wx, wy, wz));
@@ -430,9 +433,26 @@ function finishWin(player, winning4) {
   overlays.showOverlay("win", player);
 
   setAutoSpin(true);
+  winPulseTimeout = setTimeout(() => {
+    winPulseTimeout = null;
+    stopWinPulse = startWinPulse(winning4, player, piecesByKey, { durationMs: 1800 });
+  }, 480);
 }
 
+let stopWinPulse = null;
+let winPulseTimeout = null;
 let aiThinking = false;
+
+function clearWinPulse() {
+  if (winPulseTimeout) {
+    clearTimeout(winPulseTimeout);
+    winPulseTimeout = null;
+  }
+  if (stopWinPulse) {
+    stopWinPulse();
+    stopWinPulse = null;
+  }
+}
 
 function maybeAIMove() {
   if (!state.hasCompletedWelcome && !state.demoMode) return;
