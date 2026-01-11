@@ -656,6 +656,7 @@ renderer.domElement.addEventListener("pointerup", (ev) => {
     return;
   }
 
+  if (state.gameOver) return;
   if (isAITurn() || aiThinking) return;
 
   const obj = hit.object;
