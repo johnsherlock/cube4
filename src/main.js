@@ -95,7 +95,10 @@ controls.addEventListener("end", () => {
 });
 
 const { fitCameraToCube } = createCameraFitter({ camera, controls, frame: sceneBundle.frame });
-const setAutoSpin = (on) => setAutoSpinControl(controls, on);
+const setAutoSpin = (on, { speed } = {}) => {
+  setAutoSpinControl(controls, on);
+  if (typeof speed === "number") controls.autoRotateSpeed = speed;
+};
 setAutoSpin(false);
 
 function setVH() {
@@ -315,12 +318,14 @@ function startDemoMode() {
   state.hasCompletedWelcome = false;
   updateScoreUI();
   setDemoUI(true);
+  setAutoSpin(true, { speed: 0.6 });
   overlays.hideHelp();
   resetBoardOnly();
 }
 
 function exitDemoMode() {
   state.demoMode = false;
+  setAutoSpin(false);
   setDemoUI(false);
 
   if (demoSnapshot) {
@@ -375,6 +380,7 @@ function resetBoardOnly() {
   fitCameraToCube();
   state.initialFitDone = true;
 
+  if (state.demoMode) setAutoSpin(true, { speed: 0.6 });
   maybeAIMove();
 }
 
@@ -437,13 +443,29 @@ function finishWin(player, winning4) {
     winPulseTimeout = null;
     stopWinPulse = startWinPulse(winning4, player, piecesByKey, { durationMs: 1800 });
   }, 480);
+
+  if (state.demoMode) {
+    demoAdvanceTimeout = setTimeout(() => {
+      demoAdvanceTimeout = null;
+      if (isMatchOver()) {
+        resetMatch();
+      } else {
+        resetBoardOnly();
+      }
+    }, 5000);
+  }
 }
 
 let stopWinPulse = null;
 let winPulseTimeout = null;
+let demoAdvanceTimeout = null;
 let aiThinking = false;
 
 function clearWinPulse() {
+  if (demoAdvanceTimeout) {
+    clearTimeout(demoAdvanceTimeout);
+    demoAdvanceTimeout = null;
+  }
   if (winPulseTimeout) {
     clearTimeout(winPulseTimeout);
     winPulseTimeout = null;
@@ -485,7 +507,7 @@ function maybeAIMove() {
 
     const cpuPiece = placePiece(x, y, z, player, playerHex(player));
     animatePieceSpawn(cpuPiece, player, playerHex);
-    nudgeCameraFocusTo(controls, cpuPiece.position);
+    if (!state.demoMode) nudgeCameraFocusTo(controls, cpuPiece.position);
 
     const blockedLine = preThreats.get(keyOf(x, y, z));
     if (blockedLine) setTimeout(() => pulseBlockedLine(blockedLine, opponent, piecesByKey), 90);
@@ -506,6 +528,16 @@ function maybeAIMove() {
       aiThinking = false;
       overlays.showOverlay("draw");
       setAutoSpin(true);
+      if (state.demoMode) {
+        demoAdvanceTimeout = setTimeout(() => {
+          demoAdvanceTimeout = null;
+          if (isMatchOver()) {
+            resetMatch();
+          } else {
+            resetBoardOnly();
+          }
+        }, 3000);
+      }
       return;
     }
 

@@ -30,6 +30,7 @@ export function animatePieceSpawn(piece, player, playerHex, { durationMs = 450 }
       requestAnimationFrame(tick);
     } else {
       piece.scale.setScalar(1.0);
+      if (piece.userData) piece.userData.baseScale = 1.0;
       mat.emissiveIntensity = 0.0;
       mat.emissive.setHex(0x000000);
     }
@@ -74,7 +75,7 @@ export function pulseBlockedLine(line4, threatenedPlayer, piecesByKey, { duratio
     const mat = piece.material;
     targets.push({
       piece,
-      baseScale: piece.scale.x,
+      baseScale: piece.userData?.baseScale ?? 1.0,
       baseColor: mat?.color?.clone?.() || null,
       baseEmissive: mat?.emissive?.clone?.() || null,
       baseEmissiveIntensity: (mat && 'emissiveIntensity' in mat) ? (mat.emissiveIntensity || 0) : 0,
@@ -140,7 +141,7 @@ export function startWinPulse(line4, winningPlayer, piecesByKey, { durationMs = 
     const mat = piece.material;
     targets.push({
       piece,
-      baseScale: piece.scale.x,
+      baseScale: piece.userData?.baseScale ?? 1.0,
       baseColor: mat?.color?.clone?.() || null,
       baseEmissive: mat?.emissive?.clone?.() || null,
       baseEmissiveIntensity: (mat && 'emissiveIntensity' in mat) ? (mat.emissiveIntensity || 0) : 0,

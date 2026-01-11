@@ -191,7 +191,7 @@ export function createScene({ wrap, state }) {
 
     const piece = new THREE.Mesh(geom, mat);
     piece.position.copy(cellToWorld(x, y, z));
-    piece.userData = { x, y, z, kind: "piece", player };
+    piece.userData = { x, y, z, kind: "piece", player, baseScale: 1.0 };
 
     pieceGroup.add(piece);
     piecesByKey.set(keyOf(x, y, z), piece);

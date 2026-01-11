@@ -17,7 +17,7 @@ export function createCameraFitter({ camera, controls, frame }) {
     const portraitBoost = aspect < 1 ? Math.min(1 / aspect, 2.2) : 1;
     const distance = (maxDim * 0.5) / Math.tan(fov * 0.5) * baseMargin * portraitBoost;
 
-    const dir = new THREE.Vector3(1, 1, 1).normalize();
+    const dir = new THREE.Vector3(1.2, 0.7, 1.6).normalize();
     camera.position.copy(fitCenter).addScaledVector(dir, distance);
     camera.near = Math.max(0.01, distance / 200);
     camera.far = distance * 200;
