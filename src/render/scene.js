@@ -198,6 +198,7 @@ export function createScene({ wrap, state }) {
       baseScale: 1.0,
       baseColorHex: colorHex,
       baseEmissiveHex: 0x000000,
+      baseEmissiveIntensity: 0.0,
     };
 
     pieceGroup.add(piece);

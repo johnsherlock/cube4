@@ -78,10 +78,10 @@ export function createOverlayManager({
     reopenSettingsOnClose = false;
   }
 
-  function showOverlay(kind, player) {
+  function showOverlay(kind, player, { losingPlayer } = {}) {
     overlay.style.display = "flex";
 
-    const matchOver = (kind === "win") ? helpers.isMatchOver() : false;
+    const matchOver = (kind === "win" || kind === "timeout") ? helpers.isMatchOver() : false;
     const showDiffPrompt = helpers.isOnePlayerMode() && matchOver;
 
     if (difficultyPrompt) difficultyPrompt.style.display = showDiffPrompt ? "block" : "none";
@@ -103,6 +103,19 @@ MATCH OVER - ${helpers.playerName(player)} wins ${helpers.matchStyleLabel()}.`;
 Rotate and zoom to inspect the winning line.`;
       }
 
+      playAgainBtn.textContent = matchOver ? "New match" : "Next game";
+    } else if (kind === "timeout") {
+      const loserName = helpers.playerName(losingPlayer);
+      const winnerName = helpers.playerName(player);
+      overlayTitle.textContent = `Time up ${loserName}! ${winnerName} Wins!`;
+      overlayTitle.style.color = helpers.playerColor(player);
+      const scoreLine = helpers.getScoreLine();
+      if (matchOver) {
+        overlaySub.textContent = `${scoreLine}
+MATCH OVER - ${winnerName} wins ${helpers.matchStyleLabel()}.`;
+      } else {
+        overlaySub.textContent = scoreLine;
+      }
       playAgainBtn.textContent = matchOver ? "New match" : "Next game";
     } else {
       overlayTitle.textContent = "DRAW!";

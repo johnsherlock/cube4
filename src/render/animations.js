@@ -6,6 +6,7 @@ export function animatePieceSpawn(piece, player, playerHex, { durationMs = 450 }
 
   const start = performance.now();
   const mat = piece.material;
+  const baseColorHex = piece.userData?.baseColorHex ?? playerHex(player);
 
   const fromScale = 1.8;
   const toScale = 1.0;
@@ -32,11 +33,13 @@ export function animatePieceSpawn(piece, player, playerHex, { durationMs = 450 }
       piece.scale.setScalar(1.0);
       if (piece.userData) {
         piece.userData.baseScale = 1.0;
-        piece.userData.baseColorHex = mat?.color?.getHex?.() ?? piece.userData.baseColorHex;
+        piece.userData.baseColorHex = baseColorHex;
         piece.userData.baseEmissiveHex = 0x000000;
+        piece.userData.baseEmissiveIntensity = 0.0;
       }
       mat.emissiveIntensity = 0.0;
       mat.emissive.setHex(0x000000);
+      if (mat?.color) mat.color.setHex(baseColorHex);
     }
   };
 
@@ -86,7 +89,7 @@ export function pulseBlockedLine(line4, threatenedPlayer, piecesByKey, { duratio
       baseEmissive: new THREE.Color(baseEmissiveHex),
       baseColorHex,
       baseEmissiveHex,
-      baseEmissiveIntensity: (mat && 'emissiveIntensity' in mat) ? (mat.emissiveIntensity || 0) : 0,
+      baseEmissiveIntensity: piece.userData?.baseEmissiveIntensity ?? 0,
     });
   }
 
@@ -156,7 +159,7 @@ export function startWinPulse(line4, winningPlayer, piecesByKey, { durationMs = 
       baseEmissive: new THREE.Color(baseEmissiveHex),
       baseColorHex,
       baseEmissiveHex,
-      baseEmissiveIntensity: (mat && 'emissiveIntensity' in mat) ? (mat.emissiveIntensity || 0) : 0,
+      baseEmissiveIntensity: piece.userData?.baseEmissiveIntensity ?? 0,
     });
   }
 

@@ -106,6 +106,59 @@ button.pill.icon {
   backdrop-filter: none;
 }
 
+#turnOverlay {
+  background: rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(6px);
+}
+
+#timer {
+  position: fixed;
+  right: 14px;
+  top: 64px;
+  z-index: 10;
+  pointer-events: none;
+  display: none;
+  font-family: "Orbitron", "SFMono-Regular", "Menlo", "Consolas", monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.6px;
+}
+
+#timer.timerUrgent {
+  font-size: 20px;
+}
+
+@media (min-width: 900px) {
+  #timer {
+    right: auto;
+    left: 50%;
+    top: 120px;
+    transform: translateX(-50%);
+    font-size: 24px;
+  }
+
+  #timer.timerUrgent {
+    font-size: 32px;
+  }
+}
+
+.turnCard {
+  display: grid;
+  gap: 14px;
+  align-items: center;
+  justify-items: center;
+  padding: 20px 24px;
+  border-radius: 16px;
+  background: rgba(16, 18, 24, 0.82);
+  border: 1px solid rgba(255,255,255,0.2);
+  box-shadow: 0 18px 60px rgba(0,0,0,0.55);
+}
+
+.turnTitle {
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: 0.3px;
+}
+
 /* Help overlay: does NOT dim/blur, and does NOT block the canvas */
 #helpOverlay { pointer-events: none; }
 

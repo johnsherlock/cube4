@@ -15,6 +15,9 @@ export function loadPersisted() {
       if (typeof s.player2Name === "string") state.player2Name = s.player2Name;
       if (typeof s.player1Color === "string") state.player1Color = s.player1Color;
       if (typeof s.player2Color === "string") state.player2Color = s.player2Color;
+      if (typeof s.timeEnabled === "boolean") state.timeEnabled = s.timeEnabled;
+      if (Number.isFinite(Number(s.timeP1Sec))) state.timeP1Sec = Math.max(1, Math.trunc(Number(s.timeP1Sec)));
+      if (Number.isFinite(Number(s.timeP2Sec))) state.timeP2Sec = Math.max(1, Math.trunc(Number(s.timeP2Sec)));
       if (s.lastWinner === P1 || s.lastWinner === P2) state.lastWinner = s.lastWinner;
       if (s.lastStartingPlayer === P1 || s.lastStartingPlayer === P2) state.lastStartingPlayer = s.lastStartingPlayer;
     }
@@ -40,6 +43,9 @@ export function savePersisted() {
       player2Name: state.player2Name,
       player1Color: state.player1Color,
       player2Color: state.player2Color,
+      timeEnabled: state.timeEnabled,
+      timeP1Sec: state.timeP1Sec,
+      timeP2Sec: state.timeP2Sec,
       lastWinner: state.lastWinner,
       lastStartingPlayer: state.lastStartingPlayer,
     }));

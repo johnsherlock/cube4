@@ -37,6 +37,15 @@ const player2Row = document.getElementById("player2Row");
 const player1Color = document.getElementById("player1Color");
 const player2Color = document.getElementById("player2Color");
 const player2Label = document.getElementById("player2Label");
+const timerToggle = document.getElementById("timerToggle");
+const timeP1 = document.getElementById("timeP1");
+const timeP2 = document.getElementById("timeP2");
+const timeRowP1 = document.getElementById("timeRowP1");
+const timeRowP2 = document.getElementById("timeRowP2");
+const timerEl = document.getElementById("timer");
+const turnOverlay = document.getElementById("turnOverlay");
+const turnStartBtn = document.getElementById("turnStartBtn");
+const turnPrompt = document.getElementById("turnPrompt");
 const difficultySel = document.getElementById("difficultySel");
 const difficultyRow = document.getElementById("difficultyRow");
 const firstMoveSel = document.getElementById("firstMoveSel");
@@ -133,17 +142,20 @@ function refreshPlayerColors() {
   updateScoreUI();
   updateStatusForPlayer(state.currentPlayer);
   updateFrameForCurrentPlayer();
+  initTimers();
   for (const piece of piecesByKey.values()) {
     const p = piece.userData?.player;
     if (!p || !piece.material?.color) continue;
     if (piece.userData) {
       piece.userData.baseColorHex = playerHex(p);
       piece.userData.baseEmissiveHex = 0x000000;
+      piece.userData.baseEmissiveIntensity = 0.0;
     }
     piece.material.color.setHex(playerHex(p));
     if (piece.material.emissive) piece.material.emissive.setHex(0x000000);
     if ('emissiveIntensity' in piece.material) piece.material.emissiveIntensity = 0.0;
   }
+  updateTimerDisplay();
 }
 
 function updateScoreUI() {
@@ -169,6 +181,126 @@ function updateScoreUI() {
     if (indicator) indicator.style.display = (state.playersCount === 1) ? "inline-flex" : "none";
   }
 }
+
+let timerActive = false;
+let timerPlayer = P1;
+let lastTimerTick = 0;
+const remainingMs = { [P1]: 0, [P2]: 0 };
+let turnLocked = false;
+let moveLocked = false;
+let moveLockTimeout = null;
+
+function formatTime(ms) {
+  const clamped = Math.max(0, Math.floor(ms));
+  const totalSeconds = Math.floor(clamped / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  const hundredths = Math.floor(clamped / 10) % 100;
+  const mm = String(minutes).padStart(2, "0");
+  const ss = String(seconds).padStart(2, "0");
+  const hh = String(hundredths).padStart(2, "0");
+  return `${mm}:${ss}.${hh}`;
+}
+
+function updateTimerDisplay() {
+  if (!timerEl) return;
+  if (!state.timeEnabled || state.demoMode) {
+    timerEl.style.display = "none";
+    timerEl.classList.remove("timerUrgent");
+    return;
+  }
+  if (state.playersCount === 1 && timerPlayer === aiPlayer) {
+    timerEl.style.display = "none";
+    timerEl.classList.remove("timerUrgent");
+    return;
+  }
+  timerEl.style.display = "inline-flex";
+  timerEl.textContent = formatTime(remainingMs[timerPlayer] ?? 0);
+  timerEl.style.color = playerColor(timerPlayer);
+  timerEl.classList.toggle("timerUrgent", (remainingMs[timerPlayer] ?? 0) <= 10000);
+}
+
+function initTimers() {
+  remainingMs[P1] = (state.timeP1Sec || 0) * 1000;
+  remainingMs[P2] = (state.timeP2Sec || 0) * 1000;
+  timerActive = false;
+  lastTimerTick = 0;
+  timerPlayer = state.currentPlayer;
+  updateTimerDisplay();
+}
+
+function stopTurnTimer() {
+  timerActive = false;
+  lastTimerTick = 0;
+}
+
+function startTurnTimer() {
+  if (!state.timeEnabled || state.demoMode) return;
+  if (state.playersCount === 1 && state.currentPlayer === aiPlayer) return;
+  timerActive = true;
+  timerPlayer = state.currentPlayer;
+  lastTimerTick = performance.now();
+  updateTimerDisplay();
+}
+
+function showTurnOverlay() {
+  if (!turnOverlay) return;
+  turnLocked = true;
+  controls.enabled = false;
+  timerPlayer = state.currentPlayer;
+  updateTimerDisplay();
+  turnOverlay.style.display = "flex";
+  turnOverlay.setAttribute("aria-hidden", "false");
+  if (turnPrompt) {
+    const remaining = remainingMs[state.currentPlayer] ?? 0;
+    turnPrompt.textContent = `Ready, ${playerName(state.currentPlayer)}? Time Remaining ${formatTime(remaining)}`;
+    turnPrompt.style.color = playerColor(state.currentPlayer);
+  }
+  if (turnStartBtn) setPillAccentForPlayer(turnStartBtn, state.currentPlayer, 0.35, 0.7);
+}
+
+function hideTurnOverlay() {
+  if (!turnOverlay) return;
+  turnLocked = false;
+  controls.enabled = true;
+  turnOverlay.style.display = "none";
+  turnOverlay.setAttribute("aria-hidden", "true");
+}
+
+function handleTimeout(losingPlayer) {
+  stopTurnTimer();
+  hideTurnOverlay();
+  clearWinPulse();
+  clearWinOutlines();
+  state.gameOver = true;
+  const winner = (losingPlayer === P1) ? P2 : P1;
+  if (winner === P1) state.winsP1++; else state.winsP2++;
+  state.lastWinner = winner;
+  updateScoreUI();
+  if (!state.demoMode) savePersisted();
+  overlays.showOverlay("timeout", winner, { losingPlayer });
+  frameMat.color.setHex(playerHex(winner));
+  setAutoSpin(true);
+}
+
+function tickTimer(now) {
+  if (timerActive && !state.gameOver) {
+    if (!lastTimerTick) lastTimerTick = now;
+    const delta = now - lastTimerTick;
+    lastTimerTick = now;
+    remainingMs[timerPlayer] -= delta;
+    if (remainingMs[timerPlayer] <= 0) {
+      remainingMs[timerPlayer] = 0;
+      updateTimerDisplay();
+      handleTimeout(timerPlayer);
+    } else {
+      updateTimerDisplay();
+    }
+  }
+  requestAnimationFrame(tickTimer);
+}
+
+requestAnimationFrame(tickTimer);
 
 function setPillAccentForPlayer(el, player, alpha = 0.28, borderAlpha = 0.45) {
   const hex = playerHex(player);
@@ -243,6 +375,11 @@ const settings = initSettings({
     player2Label,
     player1Color,
     player2Color,
+    timerToggle,
+    timeP1,
+    timeP2,
+    timeRowP1,
+    timeRowP2,
     difficultySel,
     difficultyRow,
     firstMoveSel,
@@ -374,7 +511,10 @@ function resetBoardOnly() {
   state.board = makeEmptyBoard();
   state.gameOver = false;
 
+  stopTurnTimer();
   clearWinPulse();
+  clearMoveLockTimeout();
+  setMoveLocked(false);
   clearPieces();
   resetMarkers();
   clearSelection();
@@ -386,6 +526,7 @@ function resetBoardOnly() {
   state.currentPlayer = chooseStartingPlayer();
   state.lastStartingPlayer = state.currentPlayer;
 
+  initTimers();
   updateStatusForPlayer(state.currentPlayer);
   updateFrameForCurrentPlayer();
 
@@ -400,12 +541,24 @@ function resetBoardOnly() {
   fitCameraToCube();
   state.initialFitDone = true;
 
+  if (state.timeEnabled && !state.demoMode) {
+    if (state.playersCount === 1 && state.currentPlayer === aiPlayer) {
+      hideTurnOverlay();
+    } else {
+      showTurnOverlay();
+    }
+  } else {
+    hideTurnOverlay();
+  }
   if (state.demoMode) setAutoSpin(true, { kind: "demo" });
   maybeAIMove();
 }
 
 function resetMatch() {
   setAutoSpin(false);
+  stopTurnTimer();
+  clearMoveLockTimeout();
+  setMoveLocked(false);
   if (!state.demoMode) {
     wipeScoreboard();
     updateScoreUI();
@@ -425,6 +578,9 @@ function undoMove() {
     overlays.hideOverlay();
   }
 
+  stopTurnTimer();
+  clearMoveLockTimeout();
+  setMoveLocked(false);
   clearWinPulse();
   clearWinOutlines();
 
@@ -438,11 +594,18 @@ function undoMove() {
 
   undoBtn.disabled = true;
   clearSelection();
+
+  if (state.timeEnabled && !state.demoMode) {
+    showTurnOverlay();
+  }
 }
 
 function finishWin(player, winning4) {
+  stopTurnTimer();
   clearWinPulse();
   clearWinOutlines();
+  clearMoveLockTimeout();
+  setMoveLocked(false);
   for (const [wx, wy, wz] of winning4) {
     const piece = piecesByKey.get(keyOf(wx, wy, wz));
     if (piece) addWinOutlineToPiece(piece);
@@ -486,6 +649,8 @@ function clearWinPulse() {
     clearTimeout(demoAdvanceTimeout);
     demoAdvanceTimeout = null;
   }
+  clearMoveLockTimeout();
+  setMoveLocked(false);
   if (winPulseTimeout) {
     clearTimeout(winPulseTimeout);
     winPulseTimeout = null;
@@ -546,6 +711,7 @@ function maybeAIMove() {
     if (boardIsFull(state.board)) {
       state.gameOver = true;
       aiThinking = false;
+      stopTurnTimer();
       overlays.showOverlay("draw");
       setAutoSpin(true);
       if (state.demoMode) {
@@ -566,6 +732,17 @@ function maybeAIMove() {
     updateFrameForCurrentPlayer();
 
     aiThinking = false;
+
+    const isHumanTurn = (!state.demoMode && state.playersCount === 1 && state.currentPlayer !== aiPlayer);
+    if (isHumanTurn) {
+      schedulePostCpuDelay();
+    } else if (state.timeEnabled && !state.demoMode) {
+      if (state.playersCount === 1 && state.currentPlayer === aiPlayer) {
+        hideTurnOverlay();
+      } else {
+        showTurnOverlay();
+      }
+    }
 
     if (state.demoMode) {
       maybeAIMove();
@@ -601,6 +778,11 @@ helpBtn.addEventListener("click", () => {
 
 settingsBtn.addEventListener("click", () => {
   settings.showSettings();
+});
+
+turnStartBtn?.addEventListener?.("click", () => {
+  hideTurnOverlay();
+  startTurnTimer();
 });
 
 demoBtn?.addEventListener?.("click", () => {
@@ -644,6 +826,8 @@ let hadMultiTouch = false;
 
 renderer.domElement.addEventListener("pointerdown", (ev) => {
   state.userHasMovedCamera = true;
+  if (turnLocked) return;
+  if (moveLocked) return;
   if (settingsOverlay.style.display === "flex") return;
 
   activePointers.add(ev.pointerId);
@@ -667,6 +851,8 @@ renderer.domElement.addEventListener("pointercancel", (ev) => {
 
 renderer.domElement.addEventListener("pointerup", (ev) => {
   activePointers.delete(ev.pointerId);
+  if (turnLocked) return;
+  if (moveLocked) return;
   if (settingsOverlay.style.display === "flex") return;
 
   if (hadMultiTouch) {
@@ -767,20 +953,30 @@ renderer.domElement.addEventListener("pointerup", (ev) => {
 
   const winning4 = getWinningLineFrom(state.board, x, y, z, player);
   if (winning4) {
+    stopTurnTimer();
     finishWin(player, winning4);
     return;
   }
 
   if (boardIsFull(state.board)) {
     state.gameOver = true;
+    stopTurnTimer();
     overlays.showOverlay("draw");
     return;
   }
 
+  stopTurnTimer();
   state.currentPlayer = (state.currentPlayer === P1) ? P2 : P1;
   updateStatusForPlayer(state.currentPlayer);
   updateFrameForCurrentPlayer();
 
+  if (state.timeEnabled && !state.demoMode) {
+    if (state.playersCount === 1 && state.currentPlayer === aiPlayer) {
+      hideTurnOverlay();
+    } else {
+      showTurnOverlay();
+    }
+  }
   maybeAIMove();
 });
 
@@ -894,3 +1090,26 @@ state.lastStartingPlayer = state.currentPlayer;
 updateStatusForPlayer(state.currentPlayer);
 updateFrameForCurrentPlayer();
 maybeAIMove();
+function setMoveLocked(locked) {
+  moveLocked = locked;
+  if (locked) clearSelection();
+}
+
+function clearMoveLockTimeout() {
+  if (moveLockTimeout) {
+    clearTimeout(moveLockTimeout);
+    moveLockTimeout = null;
+  }
+}
+
+function schedulePostCpuDelay() {
+  clearMoveLockTimeout();
+  setMoveLocked(true);
+  moveLockTimeout = setTimeout(() => {
+    moveLockTimeout = null;
+    setMoveLocked(false);
+    if (state.timeEnabled && !state.demoMode) {
+      showTurnOverlay();
+    }
+  }, 1000);
+}

@@ -19,6 +19,11 @@ export function initSettings({
     player2Label,
     player1Color,
     player2Color,
+    timerToggle,
+    timeP1,
+    timeP2,
+    timeRowP1,
+    timeRowP2,
     difficultySel,
     difficultyRow,
     firstMoveSel,
@@ -72,8 +77,19 @@ export function initSettings({
     return true;
   }
 
+  function isTimeValid() {
+    if (timerToggle?.value !== "on") return true;
+    const t1 = Number(timeP1?.value);
+    if (!Number.isFinite(t1) || t1 <= 0) return false;
+    if (Number(playersSel.value) === 2) {
+      const t2 = Number(timeP2?.value);
+      if (!Number.isFinite(t2) || t2 <= 0) return false;
+    }
+    return true;
+  }
+
   function updateStartButtonState() {
-    const ok = isNameValid();
+    const ok = isNameValid() && isTimeValid();
     if (closeSettingsBtn) closeSettingsBtn.disabled = !ok;
   }
 
@@ -112,6 +128,12 @@ export function initSettings({
     }
     difficultyRow.style.display = (state.playersCount === 1) ? "grid" : "none";
     syncPlayer2Visibility();
+    if (timerToggle) timerToggle.value = state.timeEnabled ? "on" : "off";
+    if (timeP1) timeP1.value = String(state.timeP1Sec || 30);
+    if (timeP2) timeP2.value = String(state.timeP2Sec || 30);
+    const timerOn = (timerToggle?.value === "on");
+    if (timeRowP1) timeRowP1.style.display = timerOn ? "grid" : "none";
+    if (timeRowP2) timeRowP2.style.display = (timerOn && Number(playersSel.value) === 2) ? "grid" : "none";
     updateStartButtonState();
 
     localP1Color = state.player1Color;
@@ -150,6 +172,9 @@ export function initSettings({
       player2Name: p2,
       player1Color: localP1Color,
       player2Color: localP2Color,
+      timeEnabled: (timerToggle?.value === "on"),
+      timeP1Sec: clampInt(Number(timeP1?.value), 1, 36000),
+      timeP2Sec: clampInt(Number(timeP2?.value), 1, 36000),
     };
   }
 
@@ -162,6 +187,9 @@ export function initSettings({
     const prevColor2 = state.player2Color;
     const prevFirstMove = state.firstMovePolicy;
     const prevMatchStyle = state.matchStyle;
+    const prevTimeEnabled = state.timeEnabled;
+    const prevTimeP1Sec = state.timeP1Sec;
+    const prevTimeP2Sec = state.timeP2Sec;
 
     state.playersCount = next.playersCount;
     state.aiLevel = next.aiLevel;
@@ -171,6 +199,9 @@ export function initSettings({
     state.player2Name = next.player2Name;
     state.player1Color = next.player1Color;
     state.player2Color = next.player2Color;
+    state.timeEnabled = next.timeEnabled;
+    state.timeP1Sec = next.timeP1Sec;
+    state.timeP2Sec = next.timeP2Sec;
 
     const playersChanged = (state.playersCount !== prevPlayersCount);
     const levelChanged = (state.playersCount === 1) && (state.aiLevel !== prevAiLevel);
@@ -178,7 +209,10 @@ export function initSettings({
     const colorsChanged = (state.player1Color !== prevColor1) || (state.player2Color !== prevColor2);
     const firstMoveChanged = (state.firstMovePolicy !== prevFirstMove);
     const matchStyleChanged = (state.matchStyle !== prevMatchStyle);
-    const resetRequired = playersChanged || levelChanged || firstMoveChanged || matchStyleChanged;
+    const timerChanged = (state.timeEnabled !== prevTimeEnabled) ||
+      (state.timeP1Sec !== prevTimeP1Sec) ||
+      (state.timeP2Sec !== prevTimeP2Sec);
+    const resetRequired = playersChanged || levelChanged || firstMoveChanged || matchStyleChanged || timerChanged;
 
     difficultyRow.style.display = (state.playersCount === 1) ? "grid" : "none";
 
@@ -207,18 +241,33 @@ export function initSettings({
     }
     syncPlayer2Visibility();
     syncSwatches();
+    const timerOn = (timerToggle?.value === "on");
+    if (timeRowP2) timeRowP2.style.display = (timerOn && next === 2) ? "grid" : "none";
     updateStartButtonState();
   });
 
+  timerToggle?.addEventListener?.("change", () => {
+    const timerOn = (timerToggle.value === "on");
+    if (timeRowP1) timeRowP1.style.display = timerOn ? "grid" : "none";
+    if (timeRowP2) timeRowP2.style.display = (timerOn && Number(playersSel.value) === 2) ? "grid" : "none";
+    updateStartButtonState();
+  });
+
+  timeP1?.addEventListener?.("input", updateStartButtonState);
+  timeP2?.addEventListener?.("input", updateStartButtonState);
+
   closeSettingsBtn.addEventListener("click", () => {
     updateStartButtonState();
-    if (!isNameValid()) return;
+    if (!isNameValid() || !isTimeValid()) return;
     const next = readSettingsFromUI();
     const resetRequired = (
       next.playersCount !== state.playersCount ||
       next.aiLevel !== state.aiLevel ||
       next.firstMovePolicy !== state.firstMovePolicy ||
-      next.matchStyle !== state.matchStyle
+      next.matchStyle !== state.matchStyle ||
+      next.timeEnabled !== state.timeEnabled ||
+      next.timeP1Sec !== state.timeP1Sec ||
+      next.timeP2Sec !== state.timeP2Sec
     );
     const hasChanges = resetRequired || (
       next.player1Name !== state.player1Name ||

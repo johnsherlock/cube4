@@ -118,6 +118,24 @@
           </select>
         </div>
 
+        <div class="row">
+          <label for="timerToggle">Timer</label>
+          <select class="pill" id="timerToggle">
+            <option value="off" selected>Off</option>
+            <option value="on">On</option>
+          </select>
+        </div>
+
+        <div class="row" id="timeRowP1" style="display:none;">
+          <label for="timeP1">Player 1 time (sec)</label>
+          <input class="pill" id="timeP1" type="number" min="1" step="1" value="60" />
+        </div>
+
+        <div class="row" id="timeRowP2" style="display:none;">
+          <label for="timeP2">Player 2 time (sec)</label>
+          <input class="pill" id="timeP2" type="number" min="1" step="1" value="60" />
+        </div>
+
         <p class="tiny" style="margin-top:6px; opacity:0.78;">
           Changing <b>Players</b> or <b>Computer Level</b> restarts the game and wipes the scoreboard.
         </p>
@@ -164,12 +182,23 @@
 
   <div id="canvasWrap"></div>
 
+  <div class="overlay" id="turnOverlay" aria-hidden="true">
+    <div class="turnCard">
+      <div class="turnTitle" id="turnPrompt">Ready?</div>
+      <button class="pill" id="turnStartBtn">Start</button>
+    </div>
+  </div>
+
   <!-- CUBE4 logo -->
   <div id="logo">CUBE<span>4</span></div>
 
   <!-- Difficulty indicator -->
   <div id="difficultyIndicator" class="pill small" style="position:fixed; right:14px; bottom:14px; z-index:5; pointer-events:none; opacity:0.85;">
     Difficulty: <span id="difficultyValue">1</span>
+  </div>
+
+  <div id="timer" class="pill small">
+    00:00.00
   </div>
 
   <script type="module" src="src/main.js"></script>
